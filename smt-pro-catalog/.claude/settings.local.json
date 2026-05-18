@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(dir \"c:\\\\Users\\\\Karwan Store\\\\Documents\\\\smt-pro-catalog\\\\flutter_app\\\\lib\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object FullName)"
+    ]
+  }
+}

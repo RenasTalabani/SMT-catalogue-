@@ -1,0 +1,81 @@
+version: '3.9'
+
+services:
+  # ─── Backend API ─────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: smt-catalog-api
+    ports:
+      - '${PORT:-3000}:3000'
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-smt_user}:${POSTGRES_PASSWORD:-smt_password}@postgres:5432/${POSTGRES_DB:-smt_catalog}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      REDIS_URL: redis://redis:6379
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - backend_logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - smt-network
+
+  # ─── PostgreSQL ───────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: smt-catalog-postgres
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-smt_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smt_password}
+      POSTGRES_DB: ${POSTGRES_DB:-smt_catalog}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-smt_user} -d ${POSTGRES_DB:-smt_catalog}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - smt-network
+
+  # ─── Redis Cache ──────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: smt-catalog-redis
+    ports:
+      - '6379:6379'
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - smt-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  backend_logs:
+
+networks:
+  smt-network:
+    driver: bridge

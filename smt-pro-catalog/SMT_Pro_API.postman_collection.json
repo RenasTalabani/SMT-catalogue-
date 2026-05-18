@@ -1,0 +1,487 @@
+{
+  "info": {
+    "name": "SMT Pro Catalogue API",
+    "description": "Full API collection for SMT Pro Catalogue — Auth, Products, Orders, Inventory, Finance, Reports",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://748e6790bc1a41.lhr.life",
+      "description": "Change this to your tunnel URL or http://localhost:3000 for local"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "description": "Paste your JWT here after login (or use the Login request — it sets it automatically)"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"secret123\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.token) {",
+                  "  pm.collectionVariables.set('token', json.data.token);",
+                  "  console.log('Token saved:', json.data.token.substring(0,20) + '...');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"secret123\"\n}"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "📦 Products",
+      "item": [
+        {
+          "name": "Get All Products",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/products?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products"],
+              "query": [
+                { "key": "page",     "value": "1",    "description": "Page number (default: 1)" },
+                { "key": "limit",    "value": "20",   "description": "Items per page (default: 20)" },
+                { "key": "search",   "value": "",     "description": "Search by name or description", "disabled": true },
+                { "key": "category", "value": "",     "description": "Filter by category name", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/products/1"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "url": "{{baseUrl}}/api/products",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"SMT Resistor 100Ω 0402\",\n  \"category\": \"Resistors\",\n  \"price\": 0.05,\n  \"quantity\": 1000,\n  \"description\": \"0402 package, 100 ohm, 1% tolerance\"\n}"
+            },
+            "description": "Requires admin or employee role. Image upload: use form-data with 'image' field instead of JSON."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/products/1",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 0.08,\n  \"quantity\": 800\n}"
+            },
+            "description": "Send only the fields you want to update."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/products/1",
+            "description": "Requires admin role."
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "🛒 Orders",
+      "item": [
+        {
+          "name": "Get All Orders (Admin/Employee)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/orders"
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Orders",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/orders/my"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Order by ID",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/orders/1"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Order",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "url": "{{baseUrl}}/api/orders",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"productId\": 1, \"quantity\": 10 },\n    { \"productId\": 2, \"quantity\": 5 }\n  ]\n}"
+            },
+            "description": "Stock is deducted automatically. Fails if insufficient stock."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Order Status",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/orders/1/status",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"COMPLETED\"\n}"
+            },
+            "description": "status must be: PENDING | COMPLETED | CANCELLED\nCANCELLED restores stock automatically."
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "🏭 Inventory",
+      "item": [
+        {
+          "name": "Get Inventory Value & Low Stock",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/inventory/value?lowStockThreshold=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "inventory", "value"],
+              "query": [
+                { "key": "lowStockThreshold", "value": "5", "description": "Products with qty <= this value are flagged" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Stock Movements",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/inventory/movements?page=1&limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "inventory", "movements"],
+              "query": [
+                { "key": "page",  "value": "1" },
+                { "key": "limit", "value": "50" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Record Stock Movement",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "url": "{{baseUrl}}/api/inventory/movements",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": 1,\n  \"type\": \"IN\",\n  \"quantity\": 500,\n  \"notes\": \"Restocked from supplier\"\n}"
+            },
+            "description": "type must be: IN | OUT | ADJUSTMENT | RETURN\nIN and RETURN increase stock. OUT decreases stock."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Suppliers",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/inventory/suppliers"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Supplier (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "url": "{{baseUrl}}/api/inventory/suppliers",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Acme Electronics\",\n  \"phone\": \"+1 555-0100\",\n  \"email\": \"orders@acme.com\",\n  \"address\": \"123 Industrial Blvd, TX\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Supplier (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/inventory/suppliers/1",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Acme Electronics Ltd\",\n  \"phone\": \"+1 555-0199\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Supplier (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/inventory/suppliers/1"
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "💰 Finance",
+      "item": [
+        {
+          "name": "Get Profit & Loss",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/finance/profit-loss?from=2025-01-01&to=2025-12-31",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "finance", "profit-loss"],
+              "query": [
+                { "key": "from", "value": "2025-01-01", "description": "ISO date (YYYY-MM-DD)" },
+                { "key": "to",   "value": "2025-12-31", "description": "ISO date (YYYY-MM-DD)" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Expenses",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/finance/expenses"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Expense",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "url": "{{baseUrl}}/api/finance/expenses",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1200.00,\n  \"category\": \"RENT\",\n  \"notes\": \"Monthly warehouse rent\"\n}"
+            },
+            "description": "category must be: SUPPLIES | RENT | UTILITIES | SALARIES | MARKETING | MAINTENANCE | OTHER"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Expense (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/finance/expenses/1"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Incomes",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/finance/incomes"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Income",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "url": "{{baseUrl}}/api/finance/incomes",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 500.00,\n  \"source\": \"OTHER\",\n  \"notes\": \"Consulting fee\"\n}"
+            },
+            "description": "source must be: SALES | RETURNS | OTHER"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Income (Admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/finance/incomes/1"
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "📊 Reports",
+      "item": [
+        {
+          "name": "Dashboard Summary",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/reports/dashboard",
+            "description": "Returns: totalProducts, totalOrders, pendingOrders, cancelledOrders, totalRevenue, topProducts[5], recentOrders[5]"
+          },
+          "response": []
+        },
+        {
+          "name": "Sales Analytics",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/sales?from=2025-05-01&to=2025-05-31&groupBy=day",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "sales"],
+              "query": [
+                { "key": "from",    "value": "2025-05-01" },
+                { "key": "to",      "value": "2025-05-31" },
+                { "key": "groupBy", "value": "day", "description": "day | week | month" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Top Products",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/top-products?limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "top-products"],
+              "query": [
+                { "key": "limit", "value": "10", "description": "How many top products to return" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Category Breakdown",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/reports/category-breakdown"
+          },
+          "response": []
+        },
+        {
+          "name": "Audit Logs (Admin only)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/audit?page=1&limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "audit"],
+              "query": [
+                { "key": "page",  "value": "1" },
+                { "key": "limit", "value": "50" }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "❤️ Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health",
+            "description": "No auth required. Returns 200 OK if server is running."
+          },
+          "response": []
+        }
+      ]
+    }
+
+  ]
+}

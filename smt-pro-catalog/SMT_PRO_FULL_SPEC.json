@@ -1,0 +1,990 @@
+﻿{
+    "api_config":  {
+                       "instruction":  "UPDATE ngrok string each session with new tunnel URL",
+                       "current_mode":  "_Mode.ngrok",
+                       "path_constants":  {
+                                              "orders":  "/api/orders",
+                                              "login":  "/api/auth/login",
+                                              "expenses":  "/api/finance/expenses",
+                                              "topProducts":  "/api/reports/top-products",
+                                              "categoryBreakdown":  "/api/reports/category-breakdown",
+                                              "dashboard":  "/api/reports/dashboard",
+                                              "salesAnalytics":  "/api/reports/sales",
+                                              "inventoryValue":  "/api/inventory/value",
+                                              "stockMovements":  "/api/inventory/movements",
+                                              "suppliers":  "/api/inventory/suppliers",
+                                              "profitLoss":  "/api/finance/profit-loss",
+                                              "myOrders":  "/api/orders/my",
+                                              "register":  "/api/auth/register",
+                                              "incomes":  "/api/finance/incomes",
+                                              "health":  "/health",
+                                              "products":  "/api/products",
+                                              "auditLogs":  "/api/reports/audit"
+                                          },
+                       "file":  "lib/core/constants/api_endpoints.dart",
+                       "modes":  {
+                                     "ngrok":  "UPDATE EACH SESSION",
+                                     "production":  "https://smt-catalogue-api.up.railway.app",
+                                     "localWifi":  "http://192.168.0.109:3000"
+                                 }
+                   },
+    "_meta":  {
+                  "title":  "SMT Pro ERP Full Project Specification",
+                  "generated":  "2026-05-13",
+                  "version":  "2.0.0"
+              },
+    "theme":  {
+                  "persistence":  "SharedPreferences key:dark_mode",
+                  "provider":  "lib/core/theme/theme_provider.dart",
+                  "dark":  {
+                               "card":  "#1E293B",
+                               "background":  "#0F172A",
+                               "secondary":  "#0EA5E9",
+                               "appbar":  "#0F172A",
+                               "navbar":  "#1E293B",
+                               "primary":  "#6366F1"
+                           },
+                  "accents":  {
+                                  "pink":  "#EC4899",
+                                  "danger":  "#DC2626",
+                                  "warning":  "#D97706",
+                                  "success":  "#10B981",
+                                  "info":  "#0EA5E9",
+                                  "indigo":  "#6366F1",
+                                  "purple":  "#8B5CF6"
+                              },
+                  "light":  {
+                                "card":  "#FFFFFF",
+                                "background":  "#F0F4FF",
+                                "secondary":  "#0EA5E9",
+                                "appbar":  "#0F172A",
+                                "navbar":  "#FFFFFF",
+                                "primary":  "#1E40AF"
+                            }
+              },
+    "flutter_providers":  {
+                              "ReportProvider":  {
+                                                     "methods":  [
+                                                                     "load()"
+                                                                 ],
+                                                     "file":  "lib/features/reports/providers/report_provider.dart"
+                                                 },
+                              "DashboardProvider":  {
+                                                        "methods":  [
+                                                                        "load()"
+                                                                    ],
+                                                        "file":  "lib/features/dashboard/providers/dashboard_provider.dart"
+                                                    },
+                              "FinanceProvider":  {
+                                                      "file":  "lib/features/finance/providers/finance_provider.dart",
+                                                      "methods":  [
+                                                                      "loadAll()",
+                                                                      "loadPL()",
+                                                                      "loadExpenses()",
+                                                                      "loadIncomes()",
+                                                                      "addExpense(...)",
+                                                                      "deleteExpense(id)",
+                                                                      "addIncome(...)",
+                                                                      "deleteIncome(id)"
+                                                                  ],
+                                                      "state":  [
+                                                                    "_pl",
+                                                                    "_expenses",
+                                                                    "_incomes",
+                                                                    "loading flags",
+                                                                    "error strings"
+                                                                ]
+                                                  },
+                              "OrderProvider":  {
+                                                    "computed":  "orders filtered by _filter",
+                                                    "file":  "lib/features/orders/providers/order_provider.dart",
+                                                    "methods":  [
+                                                                    "setFilter(f)",
+                                                                    "load(adminView)",
+                                                                    "createOrder(items)-\u003eString?",
+                                                                    "updateStatus(id,status)-\u003eString?"
+                                                                ],
+                                                    "state":  [
+                                                                  "_orders",
+                                                                  "_loading",
+                                                                  "_error",
+                                                                  "_filter:ALL"
+                                                              ]
+                                                },
+                              "ThemeProvider":  {
+                                                    "file":  "lib/core/theme/theme_provider.dart",
+                                                    "methods":  [
+                                                                    "toggle()"
+                                                                ],
+                                                    "state":  "_isDark persisted SharedPreferences"
+                                                },
+                              "InventoryProvider":  {
+                                                        "file":  "lib/features/inventory/providers/inventory_provider.dart",
+                                                        "methods":  [
+                                                                        "loadValue(threshold)",
+                                                                        "loadMovements()",
+                                                                        "recordMovement(productId,type,qty,notes)-\u003eString?"
+                                                                    ],
+                                                        "state":  [
+                                                                      "_value",
+                                                                      "_movements",
+                                                                      "_loadingValue",
+                                                                      "_loadingMovements",
+                                                                      "_valueError",
+                                                                      "_movementsError"
+                                                                  ]
+                                                    },
+                              "AuthProvider":  {
+                                                   "file":  "lib/features/auth/providers/auth_provider.dart",
+                                                   "methods":  [
+                                                                   "checkAuth()",
+                                                                   "pingServer()",
+                                                                   "login(email,password)",
+                                                                   "logout()"
+                                                               ],
+                                                   "state":  [
+                                                                 "_user:UserModel?",
+                                                                 "_isLoading:bool",
+                                                                 "_checkingConn:bool",
+                                                                 "_error:String?",
+                                                                 "_serverReachable:bool"
+                                                             ]
+                                               },
+                              "ProductProvider":  {
+                                                      "computed":  "categories unique sorted",
+                                                      "file":  "lib/features/products/providers/product_provider.dart",
+                                                      "methods":  [
+                                                                      "load()",
+                                                                      "setSearch(v)",
+                                                                      "setCategory(v)",
+                                                                      "clearFilters()",
+                                                                      "createProduct(...)",
+                                                                      "updateProduct(id,updates)",
+                                                                      "deleteProduct(id)"
+                                                                  ],
+                                                      "state":  [
+                                                                    "_products",
+                                                                    "_loading",
+                                                                    "_error",
+                                                                    "_search",
+                                                                    "_category"
+                                                                ]
+                                                  }
+                          },
+    "flutter_models":  {
+                           "StockMovementModel":  {
+                                                      "fields":  [
+                                                                     "id:int",
+                                                                     "productId:int",
+                                                                     "productName:String",
+                                                                     "type:String",
+                                                                     "quantity:int",
+                                                                     "previousQty:int",
+                                                                     "newQty:int",
+                                                                     "notes:String?",
+                                                                     "employeeName:String",
+                                                                     "createdAt:DateTime"
+                                                                 ],
+                                                      "file":  "lib/features/inventory/models/inventory_model.dart"
+                                                  },
+                           "IncomeModel":  {
+                                               "fields":  [
+                                                              "id:int",
+                                                              "amount:double",
+                                                              "source:String",
+                                                              "notes:String?",
+                                                              "createdAt:DateTime"
+                                                          ],
+                                               "file":  "lib/features/finance/models/finance_model.dart"
+                                           },
+                           "UserModel":  {
+                                             "computed":  [
+                                                              "isAdmin:bool",
+                                                              "isEmployee:bool"
+                                                          ],
+                                             "file":  "lib/features/auth/models/user_model.dart",
+                                             "fields":  [
+                                                            "id:int",
+                                                            "name:String",
+                                                            "email:String",
+                                                            "role:String"
+                                                        ]
+                                         },
+                           "OrderItemModel":  {
+                                                  "fields":  [
+                                                                 "id:int",
+                                                                 "productId:int",
+                                                                 "productName:String from j[product][name]",
+                                                                 "quantity:int",
+                                                                 "price:double"
+                                                             ],
+                                                  "file":  "lib/features/orders/models/order_model.dart"
+                                              },
+                           "OrderModel":  {
+                                              "fields":  [
+                                                             "id:int",
+                                                             "status:String",
+                                                             "totalAmount:double",
+                                                             "createdAt:DateTime",
+                                                             "userName:String from j[user][name]",
+                                                             "items:List\u003cOrderItemModel\u003e"
+                                                         ],
+                                              "file":  "lib/features/orders/models/order_model.dart"
+                                          },
+                           "LowStockItem":  {
+                                                "fields":  [
+                                                               "id:int",
+                                                               "name:String",
+                                                               "category:String",
+                                                               "quantity:int"
+                                                           ],
+                                                "file":  "lib/features/inventory/models/inventory_model.dart"
+                                            },
+                           "ExpenseModel":  {
+                                                "fields":  [
+                                                               "id:int",
+                                                               "amount:double",
+                                                               "category:String",
+                                                               "notes:String?",
+                                                               "createdAt:DateTime"
+                                                           ],
+                                                "file":  "lib/features/finance/models/finance_model.dart"
+                                            },
+                           "ProfitLossModel":  {
+                                                   "fields":  [
+                                                                  "totalRevenue:double",
+                                                                  "totalExpenses:double",
+                                                                  "totalManualIncome:double",
+                                                                  "netProfit:double",
+                                                                  "profitMargin:double"
+                                                              ],
+                                                   "file":  "lib/features/finance/models/finance_model.dart"
+                                               },
+                           "ProductModel":  {
+                                                "fields":  [
+                                                               "id:int",
+                                                               "name:String",
+                                                               "description:String?",
+                                                               "price:double",
+                                                               "quantity:int",
+                                                               "imageUrl:String?",
+                                                               "category:String",
+                                                               "createdAt:DateTime"
+                                                           ],
+                                                "file":  "lib/features/products/models/product_model.dart"
+                                            },
+                           "InventoryValueModel":  {
+                                                       "fields":  [
+                                                                      "totalValue:double from totalInventoryValue",
+                                                                      "totalProducts:int",
+                                                                      "lowStockCount:int computed qty\u003e0",
+                                                                      "outOfStockCount:int computed qty==0",
+                                                                      "lowStockItems:List\u003cLowStockItem\u003e from lowStockProducts"
+                                                                  ],
+                                                       "file":  "lib/features/inventory/models/inventory_model.dart"
+                                                   }
+                       },
+    "postman_collection":  {
+                               "auth_header":  "Authorization: Bearer {{token}}",
+                               "auto_token":  "Login Tests tab: pm.environment.set(token, pm.response.json().data.token)",
+                               "file":  "SMT_Pro_API.postman_collection.json in project root",
+                               "total_requests":  "30+ covering all modules"
+                           },
+    "flutter_screens":  {
+                            "LoginScreen":  {
+                                                "features":  [
+                                                                 "AnimationController 700ms FadeTransition SlideTransition",
+                                                                 "dark gradient #0F172A #1E3A8A #1D4ED8",
+                                                                 "pingServer on init _ServerStatus chip connecting/unreachable/connected",
+                                                                 "email+password form validation",
+                                                                 "error banner red box",
+                                                                 "Sign In disabled if !serverReachable or loading"
+                                                             ],
+                                                "file":  "lib/features/auth/screens/login_screen.dart"
+                                            },
+                            "AddEditProductScreen":  {
+                                                         "features":  [
+                                                                          "create or edit mode",
+                                                                          "fields name category price quantity description",
+                                                                          "form validation",
+                                                                          "SnackBar success/error"
+                                                                      ],
+                                                         "file":  "lib/features/products/screens/add_edit_product_screen.dart"
+                                                     },
+                            "DashboardOverviewPage":  {
+                                                          "features":  [
+                                                                           "SliverAppBar expandedHeight:160 gradient header",
+                                                                           "greeting + user name + date",
+                                                                           "refresh + popupmenu logout",
+                                                                           "KPI 2x2 grid Total-Products/Orders/Revenue/Pending",
+                                                                           "Revenue LineChart gradient fill",
+                                                                           "Top Products rank circles"
+                                                                       ],
+                                                          "file":  "lib/features/dashboard/screens/dashboard_screen.dart"
+                                                      },
+                            "OrdersScreen":  {
+                                                 "features":  [
+                                                                  "filter chips ALL/PENDING/COMPLETED/CANCELLED",
+                                                                  "_OrderCard status color+icon order# date total items",
+                                                                  "Complete+Cancel for PENDING if canManage",
+                                                                  "FAB New Order"
+                                                              ],
+                                                 "file":  "lib/features/orders/screens/orders_screen.dart"
+                                             },
+                            "CreateOrderScreen":  {
+                                                      "features":  [
+                                                                       "product list add/remove/qty",
+                                                                       "cart summary strip",
+                                                                       "AppBar total badge",
+                                                                       "Place Order calls createOrder"
+                                                                   ],
+                                                      "file":  "lib/features/orders/screens/create_order_screen.dart"
+                                                  },
+                            "InventoryScreen":  {
+                                                    "features":  [
+                                                                     "TabBar Overview/Movements",
+                                                                     "Overview 4 info cards + low stock list",
+                                                                     "Movements type-colored rows",
+                                                                     "_RecordMovementSheet product-dropdown type-selector qty notes"
+                                                                 ],
+                                                    "file":  "lib/features/inventory/screens/inventory_screen.dart"
+                                                },
+                            "SettingsScreen":  {
+                                                   "features":  [
+                                                                    "gradient profile card avatar initial",
+                                                                    "Dark Mode Switch toggle",
+                                                                    "Account name/email/role tiles",
+                                                                    "About version/edition",
+                                                                    "Sign Out with dialog"
+                                                                ],
+                                                   "file":  "lib/features/settings/screens/settings_screen.dart"
+                                               },
+                            "ProductsScreen":  {
+                                                   "features":  [
+                                                                    "dark SliverAppBar live search bar",
+                                                                    "category filter bottom sheet",
+                                                                    "active filter chip",
+                                                                    "product count",
+                                                                    "_ProductCard image name category-badge stock-badge price edit+delete",
+                                                                    "FAB Add Product admin/employee only",
+                                                                    "delete confirmation dialog"
+                                                                ],
+                                                   "file":  "lib/features/products/screens/products_screen.dart"
+                                               },
+                            "FinanceScreen":  {
+                                                  "features":  [
+                                                                   "TabBar P\u0026L/Expenses/Incomes",
+                                                                   "P\u0026L 3 cards + gradient net profit green/red by sign",
+                                                                   "Expenses list FAB _AddEntrySheet 7 categories",
+                                                                   "Incomes list FAB _AddEntrySheet 3 sources"
+                                                               ],
+                                                  "file":  "lib/features/finance/screens/finance_screen.dart"
+                                              },
+                            "MonthlyReportScreen":  {
+                                                        "features":  [
+                                                                         "monthly sales analytics charts"
+                                                                     ],
+                                                        "file":  "lib/features/reports/screens/monthly_report_screen.dart"
+                                                    }
+                        },
+    "complete_file_map":  {
+                              "backend/src/server.js":  "HTTP server Socket.IO Prisma startup",
+                              "backend/prisma/schema.prisma":  "All 8 Prisma models",
+                              "backend/src/shared/middlewares/auth.middleware.js":  "JWT verify adds req.user",
+                              "flutter_app/lib/features/products/screens/low_stock_screen.dart":  "LowStockScreen standalone not in main nav",
+                              "flutter_app/lib/main.dart":  "SMTApp MultiProvider 8 providers _AuthGate _buildLightTheme _buildDarkTheme",
+                              "flutter_app/lib/features/orders/screens/create_order_screen.dart":  "CreateOrderScreen _CartItem _ProductPickerTile",
+                              "flutter_app/lib/features/dashboard/screens/dashboard_screen.dart":  "DashboardScreen _OverviewPage _KpiGrid _RevenueChart _TopProductsSection _ErrorView _BottomNav",
+                              "backend/src/modules/finance/":  "finance.routes finance.controller finance.service finance.validation",
+                              "flutter_app/lib/features/finance/models/finance_model.dart":  "ExpenseModel IncomeModel ProfitLossModel",
+                              "flutter_app/lib/features/auth/providers/auth_provider.dart":  "AuthProvider",
+                              "flutter_app/lib/features/dashboard/services/dashboard_service.dart":  "DashboardService",
+                              "flutter_app/lib/features/finance/screens/finance_screen.dart":  "FinanceScreen _PLTab _PLCard _ExpensesTab _IncomesTab _AddEntrySheet",
+                              "flutter_app/lib/features/reports/services/report_service.dart":  "ReportService",
+                              "flutter_app/lib/features/products/providers/product_provider.dart":  "ProductProvider",
+                              "flutter_app/lib/features/dashboard/models/dashboard_model.dart":  "DashboardSummary",
+                              "backend/src/modules/inventory/":  "inventory.routes inventory.controller inventory.service inventory.validation",
+                              "flutter_app/lib/features/orders/models/order_model.dart":  "OrderModel OrderItemModel",
+                              "flutter_app/lib/features/settings/screens/settings_screen.dart":  "SettingsScreen _SettingTile",
+                              "backend/src/modules/orders/":  "order.routes order.controller order.service order.validation",
+                              "flutter_app/lib/features/orders/providers/order_provider.dart":  "OrderProvider",
+                              "flutter_app/lib/features/auth/models/user_model.dart":  "UserModel",
+                              "flutter_app/lib/features/products/screens/products_screen.dart":  "ProductsScreen _ProductCard",
+                              "flutter_app/lib/features/orders/screens/orders_screen.dart":  "OrdersScreen _OrderCard",
+                              "flutter_app/lib/features/products/screens/add_edit_product_screen.dart":  "AddEditProductScreen",
+                              "flutter_app/lib/features/finance/providers/finance_provider.dart":  "FinanceProvider",
+                              "flutter_app/lib/features/finance/services/finance_service.dart":  "FinanceService",
+                              "flutter_app/lib/features/inventory/providers/inventory_provider.dart":  "InventoryProvider",
+                              "backend/src/app.js":  "Express app routes middleware",
+                              "flutter_app/lib/core/api/api_client.dart":  "Dio singleton JWT-injector retry-interceptor",
+                              "flutter_app/lib/core/errors/api_exception.dart":  "ApiException userMessage getter",
+                              "flutter_app/lib/features/dashboard/providers/dashboard_provider.dart":  "DashboardProvider",
+                              "backend/src/modules/auth/":  "auth.routes auth.controller auth.service auth.validation",
+                              "flutter_app/lib/features/products/services/product_service.dart":  "ProductService",
+                              "flutter_app/lib/features/inventory/screens/inventory_screen.dart":  "InventoryScreen _OverviewTab _MovementsTab _InfoCard _LowStockRow _RecordMovementSheet",
+                              "flutter_app/lib/features/reports/providers/report_provider.dart":  "ReportProvider",
+                              "flutter_app/lib/features/reports/screens/monthly_report_screen.dart":  "MonthlyReportScreen",
+                              "backend/src/modules/realtime/":  "realtime.service Socket.IO event handlers",
+                              "backend/src/shared/middlewares/rbac.middleware.js":  "role authorization",
+                              "flutter_app/lib/core/constants/api_endpoints.dart":  "_mode switch all path constants",
+                              "flutter_app/lib/core/theme/theme_provider.dart":  "ThemeProvider ChangeNotifier toggle persists to prefs",
+                              "flutter_app/lib/core/storage/token_storage.dart":  "SharedPreferences token/name/role",
+                              "flutter_app/lib/features/auth/services/auth_service.dart":  "AuthService",
+                              "flutter_app/lib/shared/widgets/stat_card.dart":  "Reusable KPI stat card",
+                              "flutter_app/lib/features/reports/models/report_models.dart":  "TopProductModel SalesSummaryModel",
+                              "backend/src/modules/reports/":  "reports.routes reports.controller",
+                              "flutter_app/lib/features/auth/screens/login_screen.dart":  "LoginScreen _ServerStatus",
+                              "flutter_app/lib/features/orders/services/order_service.dart":  "OrderService",
+                              "flutter_app/lib/features/products/models/product_model.dart":  "ProductModel",
+                              "backend/src/modules/products/":  "product.routes product.controller product.service product.validation",
+                              "flutter_app/lib/features/inventory/models/inventory_model.dart":  "StockMovementModel InventoryValueModel LowStockItem",
+                              "flutter_app/lib/features/inventory/services/inventory_service.dart":  "InventoryService",
+                              "backend/src/shared/middlewares/rateLimiter.middleware.js":  "express-rate-limit apiLimiter"
+                          },
+    "backend_stack":  {
+                          "framework":  "Express 4",
+                          "uploads":  "multer + cloudinary configured optional",
+                          "security":  "helmet + express-rate-limit + cors",
+                          "auth_libs":  "jsonwebtoken + bcryptjs",
+                          "cache":  "in-memory Map utility, Redis config present not required",
+                          "realtime":  "Socket.IO on same HTTP server",
+                          "runtime":  "Node.js",
+                          "orm":  "Prisma — SQLite dev, PostgreSQL prod-ready",
+                          "logging":  "winston + morgan"
+                      },
+    "api_endpoints":  {
+                          "GET /api/reports/dashboard":  {
+                                                             "auth":  true,
+                                                             "response":  {
+                                                                              "totalOrders":  0,
+                                                                              "pendingOrders":  0,
+                                                                              "totalRevenue":  0,
+                                                                              "totalProducts":  0
+                                                                          }
+                                                         },
+                          "POST /api/orders":  {
+                                                   "body":  {
+                                                                "items":  [
+                                                                              {
+                                                                                  "productId":  "int",
+                                                                                  "quantity":  "int"
+                                                                              }
+                                                                          ]
+                                                            },
+                                                   "side_effects":  [
+                                                                        "decrements product.quantity",
+                                                                        "emits socket order:created"
+                                                                    ],
+                                                   "response":  "Order",
+                                                   "auth":  true
+                                               },
+                          "GET /api/reports/audit":  {
+                                                         "roles":  [
+                                                                       "admin"
+                                                                   ],
+                                                         "response":  "AuditLog[]",
+                                                         "auth":  true
+                                                     },
+                          "GET /api/finance/expenses":  {
+                                                            "auth":  true,
+                                                            "response":  "Expense[]"
+                                                        },
+                          "GET /api/inventory/suppliers":  {
+                                                               "auth":  true,
+                                                               "response":  "Supplier[]"
+                                                           },
+                          "POST /api/products":  {
+                                                     "body":  {
+                                                                  "name":  "string",
+                                                                  "imageUrl":  "optional",
+                                                                  "description":  "optional",
+                                                                  "quantity":  "int",
+                                                                  "price":  "number",
+                                                                  "category":  "string"
+                                                              },
+                                                     "roles":  [
+                                                                   "admin",
+                                                                   "employee"
+                                                               ],
+                                                     "response":  "Product",
+                                                     "auth":  true
+                                                 },
+                          "GET /api/reports/top-products":  {
+                                                                "auth":  true,
+                                                                "response":  [
+                                                                                 {
+                                                                                     "totalRevenue":  0,
+                                                                                     "category":  "string",
+                                                                                     "name":  "string",
+                                                                                     "id":  1,
+                                                                                     "totalSold":  0
+                                                                                 }
+                                                                             ]
+                                                            },
+                          "GET /api/products":  {
+                                                    "query":  {
+                                                                  "category":  "optional",
+                                                                  "search":  "optional"
+                                                              },
+                                                    "response":  "Product[]",
+                                                    "auth":  true
+                                                },
+                          "POST /api/auth/register":  {
+                                                          "body":  {
+                                                                       "email":  "string",
+                                                                       "name":  "string",
+                                                                       "password":  "string min6",
+                                                                       "role":  "optional"
+                                                                   },
+                                                          "response":  {
+                                                                           "user":  {
+                                                                                        "email":  "string",
+                                                                                        "name":  "string",
+                                                                                        "id":  1,
+                                                                                        "role":  "string"
+                                                                                    },
+                                                                           "token":  "JWT"
+                                                                       },
+                                                          "auth":  false
+                                                      },
+                          "PATCH /api/orders/:id/status":  {
+                                                               "body":  {
+                                                                            "status":  "COMPLETED|CANCELLED"
+                                                                        },
+                                                               "roles":  [
+                                                                             "admin",
+                                                                             "manager",
+                                                                             "employee"
+                                                                         ],
+                                                               "response":  "Order",
+                                                               "auth":  true
+                                                           },
+                          "POST /api/inventory/movements":  {
+                                                                "body":  {
+                                                                             "quantity":  "int",
+                                                                             "productId":  "int",
+                                                                             "type":  "IN|OUT|ADJUSTMENT|RETURN",
+                                                                             "notes":  "optional"
+                                                                         },
+                                                                "side_effects":  [
+                                                                                     "updates product.quantity",
+                                                                                     "emits socket inventory:changed"
+                                                                                 ],
+                                                                "response":  "StockMovement",
+                                                                "auth":  true
+                                                            },
+                          "GET /api/products/:id":  {
+                                                        "auth":  true,
+                                                        "response":  "Product"
+                                                    },
+                          "POST /api/finance/expenses":  {
+                                                             "body":  {
+                                                                          "amount":  "number",
+                                                                          "category":  "SUPPLIES|RENT|UTILITIES|SALARIES|MARKETING|MAINTENANCE|OTHER",
+                                                                          "notes":  "optional"
+                                                                      },
+                                                             "response":  "Expense",
+                                                             "auth":  true
+                                                         },
+                          "GET /health":  {
+                                              "auth":  false,
+                                              "response":  {
+                                                               "status":  "ok",
+                                                               "service":  "SMT Catalogue API",
+                                                               "version":  "2.0.0"
+                                                           }
+                                          },
+                          "DELETE /api/finance/incomes/:id":  {
+                                                                  "roles":  [
+                                                                                "admin"
+                                                                            ],
+                                                                  "response":  "success",
+                                                                  "auth":  true
+                                                              },
+                          "GET /api/orders":  {
+                                                  "roles":  [
+                                                                "admin",
+                                                                "manager",
+                                                                "employee"
+                                                            ],
+                                                  "response":  "Order[] with nested user and items product.name",
+                                                  "auth":  true
+                                              },
+                          "PUT /api/products/:id":  {
+                                                        "body":  "Partial Product fields",
+                                                        "roles":  [
+                                                                      "admin",
+                                                                      "employee"
+                                                                  ],
+                                                        "response":  "Product",
+                                                        "auth":  true
+                                                    },
+                          "POST /api/finance/incomes":  {
+                                                            "body":  {
+                                                                         "amount":  "number",
+                                                                         "source":  "SALES|RETURNS|OTHER",
+                                                                         "notes":  "optional"
+                                                                     },
+                                                            "response":  "Income",
+                                                            "auth":  true
+                                                        },
+                          "GET /api/reports/category-breakdown":  {
+                                                                      "auth":  true,
+                                                                      "response":  "category breakdown array"
+                                                                  },
+                          "GET /api/reports/sales":  {
+                                                         "auth":  true,
+                                                         "response":  "sales analytics array"
+                                                     },
+                          "GET /api/inventory/value":  {
+                                                           "query":  {
+                                                                         "threshold":  "int default 10"
+                                                                     },
+                                                           "response":  {
+                                                                            "totalInventoryValue":  0,
+                                                                            "totalProducts":  0,
+                                                                            "lowStockProducts":  "LowStockItem[]"
+                                                                        },
+                                                           "auth":  true
+                                                       },
+                          "POST /api/auth/login":  {
+                                                       "body":  {
+                                                                    "password":  "string",
+                                                                    "email":  "string"
+                                                                },
+                                                       "response":  {
+                                                                        "user":  {
+                                                                                     "email":  "string",
+                                                                                     "name":  "string",
+                                                                                     "id":  1,
+                                                                                     "role":  "string"
+                                                                                 },
+                                                                        "token":  "JWT"
+                                                                    },
+                                                       "auth":  false
+                                                   },
+                          "DELETE /api/finance/expenses/:id":  {
+                                                                   "roles":  [
+                                                                                 "admin"
+                                                                             ],
+                                                                   "response":  "success",
+                                                                   "auth":  true
+                                                               },
+                          "GET /api/inventory/movements":  {
+                                                               "query":  {
+                                                                             "page":  "int",
+                                                                             "limit":  "int default 50"
+                                                                         },
+                                                               "response":  "StockMovement[] with nested product and employee",
+                                                               "auth":  true
+                                                           },
+                          "GET /api/orders/my":  {
+                                                     "auth":  true,
+                                                     "response":  "Order[] for logged-in user only"
+                                                 },
+                          "GET /api/finance/profit-loss":  {
+                                                               "query":  {
+                                                                             "to":  "ISO optional",
+                                                                             "from":  "ISO optional"
+                                                                         },
+                                                               "response":  {
+                                                                                "totalExpenses":  0,
+                                                                                "profitMargin":  0,
+                                                                                "netProfit":  0,
+                                                                                "totalRevenue":  0,
+                                                                                "totalManualIncome":  0
+                                                                            },
+                                                               "auth":  true
+                                                           },
+                          "GET /api/finance/incomes":  {
+                                                           "auth":  true,
+                                                           "response":  "Income[]"
+                                                       },
+                          "DELETE /api/products/:id":  {
+                                                           "roles":  [
+                                                                         "admin"
+                                                                     ],
+                                                           "response":  "success",
+                                                           "auth":  true
+                                                       }
+                      },
+    "quick_start":  {
+                        "3_tunnel":  "New terminal: ssh -R 80:localhost:3000 nokey@localhost.run",
+                        "5_update_api_endpoints":  "Edit flutter_app/lib/core/constants/api_endpoints.dart paste URL in ngrok case keep _mode = _Mode.ngrok",
+                        "usb_tip":  "If unauthorized: unlock phone accept Allow USB debugging Always allow popup",
+                        "1_backend":  "cd backend \u0026\u0026 node src/server.js",
+                        "4_copy_url":  "Copy printed https://xxxxxxxx.lhr.life URL",
+                        "6_run":  "cd flutter_app \u0026\u0026 flutter run -d RFCX40491RP --release",
+                        "2_verify":  "GET http://localhost:3000/health should return {status:ok}",
+                        "first_user":  "POST /api/auth/register with body {name email password role:admin}"
+                    },
+    "socket_events":  {
+                          "server_emits":  [
+                                               "order:created",
+                                               "order:status_changed",
+                                               "inventory:changed",
+                                               "product:created",
+                                               "product:updated",
+                                               "product:deleted"
+                                           ],
+                          "note":  "Socket.IO on same HTTP server as Express"
+                      },
+    "role_based_access":  {
+                              "manager":  "View all orders change order status role in DB partially enforced",
+                              "accountant":  "Finance screens role in DB RBAC not yet enforced",
+                              "admin":  "Full access all CRUD delete products/expenses/incomes view audit logs",
+                              "employee":  "Create edit products create orders record inventory movements",
+                              "rbac_note":  "Only admin/employee fully enforced. Expand rbac.middleware.js for other roles.",
+                              "canEdit_check":  "role == admin OR role == employee",
+                              "warehouse":  "Inventory movements role in DB RBAC not yet enforced",
+                              "canManage_check":  "role in [admin, manager, employee]"
+                          },
+    "pubspec_dependencies":  {
+                                 "mobile_scanner":  "^5.2.3 — INSTALLED, UI NOT YET BUILT",
+                                 "intl":  "^0.19.0",
+                                 "hive_flutter":  "^1.1.0",
+                                 "shared_preferences":  "^2.2.2",
+                                 "cached_network_image":  "^3.3.1",
+                                 "dio":  "^5.4.0",
+                                 "path_provider":  "^2.1.2",
+                                 "build_runner":  "^2.4.8 dev",
+                                 "fl_chart":  "^0.67.0",
+                                 "hive_generator":  "^2.0.1 dev",
+                                 "provider":  "^6.1.2",
+                                 "hive":  "^2.2.3 — INSTALLED, NOT YET WIRED"
+                             },
+    "flutter_navigation":  {
+                               "tabs":  [
+                                            {
+                                                "label":  "Dashboard",
+                                                "screen":  "_OverviewPage",
+                                                "index":  0
+                                            },
+                                            {
+                                                "label":  "Products",
+                                                "screen":  "ProductsScreen",
+                                                "index":  1
+                                            },
+                                            {
+                                                "label":  "Orders",
+                                                "screen":  "OrdersScreen",
+                                                "index":  2
+                                            },
+                                            {
+                                                "label":  "Inventory",
+                                                "screen":  "InventoryScreen",
+                                                "index":  3
+                                            },
+                                            {
+                                                "label":  "Analytics",
+                                                "screen":  "MonthlyReportScreen",
+                                                "index":  4
+                                            },
+                                            {
+                                                "label":  "Finance",
+                                                "screen":  "FinanceScreen",
+                                                "index":  5
+                                            },
+                                            {
+                                                "label":  "Settings",
+                                                "screen":  "SettingsScreen",
+                                                "index":  6
+                                            }
+                                        ],
+                               "type":  "NavigationBar Material3 bottom nav 7 tabs"
+                           },
+    "database_models":  {
+                            "StockMovement":  {
+                                                  "fields":  [
+                                                                 "id Int PK",
+                                                                 "productId Int FK",
+                                                                 "type String",
+                                                                 "quantity Int",
+                                                                 "previousQty Int",
+                                                                 "newQty Int",
+                                                                 "notes String?",
+                                                                 "employeeId Int FK",
+                                                                 "createdAt DateTime"
+                                                             ],
+                                                  "type_values":  [
+                                                                      "IN",
+                                                                      "OUT",
+                                                                      "ADJUSTMENT",
+                                                                      "RETURN"
+                                                                  ]
+                                              },
+                            "AuditLog":  {
+                                             "fields":  [
+                                                            "id Int PK",
+                                                            "userId Int FK",
+                                                            "action String",
+                                                            "entity String",
+                                                            "entityId Int?",
+                                                            "metadata String? JSON",
+                                                            "createdAt DateTime"
+                                                        ]
+                                         },
+                            "Order":  {
+                                          "indexes":  [
+                                                          "createdAt",
+                                                          "status",
+                                                          "userId"
+                                                      ],
+                                          "fields":  [
+                                                         "id Int PK",
+                                                         "userId Int FK",
+                                                         "totalAmount Float",
+                                                         "status String default:PENDING",
+                                                         "createdAt DateTime"
+                                                     ],
+                                          "status_values":  [
+                                                                "PENDING",
+                                                                "COMPLETED",
+                                                                "CANCELLED"
+                                                            ]
+                                      },
+                            "OrderItem":  {
+                                              "fields":  [
+                                                             "id Int PK",
+                                                             "orderId Int FK cascade-delete",
+                                                             "productId Int FK",
+                                                             "quantity Int",
+                                                             "price Float"
+                                                         ]
+                                          },
+                            "Income":  {
+                                           "fields":  [
+                                                          "id Int PK",
+                                                          "amount Float",
+                                                          "source String",
+                                                          "notes String?",
+                                                          "createdBy Int FK",
+                                                          "createdAt DateTime"
+                                                      ],
+                                           "sources":  [
+                                                           "SALES",
+                                                           "RETURNS",
+                                                           "OTHER"
+                                                       ]
+                                       },
+                            "Expense":  {
+                                            "fields":  [
+                                                           "id Int PK",
+                                                           "amount Float",
+                                                           "category String",
+                                                           "notes String?",
+                                                           "createdBy Int FK",
+                                                           "createdAt DateTime"
+                                                       ],
+                                            "categories":  [
+                                                               "SUPPLIES",
+                                                               "RENT",
+                                                               "UTILITIES",
+                                                               "SALARIES",
+                                                               "MARKETING",
+                                                               "MAINTENANCE",
+                                                               "OTHER"
+                                                           ]
+                                        },
+                            "Product":  {
+                                            "fields":  [
+                                                           "id Int PK",
+                                                           "name String",
+                                                           "description String?",
+                                                           "price Float",
+                                                           "quantity Int",
+                                                           "imageUrl String?",
+                                                           "imagePublicId String?",
+                                                           "category String",
+                                                           "createdAt DateTime",
+                                                           "updatedAt DateTime"
+                                                       ]
+                                        },
+                            "Supplier":  {
+                                             "fields":  [
+                                                            "id Int PK",
+                                                            "name String",
+                                                            "phone String?",
+                                                            "email String? UNIQUE",
+                                                            "address String?",
+                                                            "createdAt DateTime"
+                                                        ]
+                                         },
+                            "User":  {
+                                         "fields":  [
+                                                        "id Int PK",
+                                                        "name String",
+                                                        "email String UNIQUE",
+                                                        "password String bcrypt",
+                                                        "role String default:employee",
+                                                        "createdAt DateTime"
+                                                    ],
+                                         "roles":  [
+                                                       "admin",
+                                                       "employee",
+                                                       "manager",
+                                                       "accountant",
+                                                       "warehouse"
+                                                   ]
+                                     }
+                        },
+    "pending_features":  {
+                             "postgresql_production":  {
+                                                           "status":  "Currently SQLite",
+                                                           "plan":  "Change prisma datasource to postgresql update DATABASE_URL to Railway or Supabase run prisma migrate deploy."
+                                                       },
+                             "ai_sales_forecast":  {
+                                                       "status":  "not started",
+                                                       "plan":  "Python FastAPI + Prophet microservice /api/ai/forecast endpoint Analytics tab shows prediction chart."
+                                                   },
+                             "product_image_upload":  {
+                                                          "status":  "Cloudinary configured server-side Flutter UI missing",
+                                                          "plan":  "Add image_picker to pubspec. AddEditProductScreen image picker. POST multipart/form-data to backend uploads to Cloudinary."
+                                                      },
+                             "expanded_rbac":  {
+                                                   "status":  "roles in DB middleware only enforces admin/employee",
+                                                   "plan":  "Update backend/src/shared/middlewares/rbac.middleware.js to enforce manager/accountant/warehouse per route group."
+                                               },
+                             "barcode_scanning":  {
+                                                      "status":  "mobile_scanner 5.2 installed UI NOT BUILT",
+                                                      "plan":  "Create lib/shared/screens/barcode_scanner_screen.dart using MobileScannerController. Add scan button to CreateOrderScreen AppBar finds product by ID adds to cart. Add to _RecordMovementSheet auto-selects product."
+                                                  },
+                             "push_notifications":  {
+                                                        "status":  "not started",
+                                                        "plan":  "Firebase Cloud Messaging notify on order:created and when product hits low stock threshold."
+                                                    },
+                             "web_admin_dashboard":  {
+                                                         "status":  "not started",
+                                                         "plan":  "React/Next.js dashboard consuming same REST API."
+                                                     },
+                             "refresh_tokens":  {
+                                                    "status":  "not implemented only access tokens",
+                                                    "plan":  "Backend POST /api/auth/refresh. Flutter store refreshToken add 401 Dio interceptor auto-refreshes."
+                                                },
+                             "offline_mode":  {
+                                                  "status":  "hive installed NOT WIRED",
+                                                  "plan":  "Wrap ProductService.getAll with Hive box serve from box if offline write to box on successful fetch."
+                                              }
+                         },
+    "known_issues_and_fixes":  {
+                                   "tunnel_url_expires":  "localhost.run URL changes every restart. Update ngrok case in api_endpoints.dart rebuild.",
+                                   "Switch_activeColor_deprecated":  "Use activeThumbColor + activeTrackColor instead of activeColor on Switch.",
+                                   "const_in_SliverAppBar":  "Remove inner const from Text inside const SliverAppBar.",
+                                   "DropdownButtonFormField_value_deprecated":  "Use initialValue not value deprecated in Flutter 3.x.",
+                                   "usb_unauthorized":  "Phone sleeps between builds loses authorization. Unlock phone accept Allow USB debugging Always allow popup.",
+                                   "context_async_gap":  "Capture provider ref BEFORE await or Navigator.push. Check mounted before using context after async.",
+                                   "port_3000_busy":  "EADDRINUSE: Stop-Process node PID in PowerShell."
+                               },
+    "project_overview":  {
+                             "auth":  "JWT HS256 stored in SharedPreferences via TokenStorage",
+                             "flutter_package":  "smt_app",
+                             "platform":  "Android Flutter + Node.js REST backend",
+                             "device_tested":  "Samsung Galaxy S24 Ultra SM-S928B Android 16 API36 device-id:RFCX40491RP",
+                             "backend_port":  3000,
+                             "name":  "SMT Pro Catalogue",
+                             "tunnel":  "localhost.run — ssh -R 80:localhost:3000 nokey@localhost.run — copy printed URL into api_endpoints.dart ngrok case",
+                             "app_class":  "SMTApp",
+                             "tagline":  "Enterprise Inventory and Sales Platform",
+                             "database":  "SQLite via Prisma ORM — file: backend/prisma/dev.db"
+                         }
+}

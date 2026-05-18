@@ -1,0 +1,25 @@
+# Node
+backend/node_modules/
+backend/npm-debug.log*
+backend/yarn-debug.log*
+backend/yarn-error.log*
+backend/package-lock.json
+backend/.env
+
+# Logs
+backend/logs/
+*.log
+
+# Flutter
+flutter_app/.dart_tool/
+flutter_app/.packages
+flutter_app/build/
+flutter_app/.flutter-plugins
+flutter_app/.flutter-plugins-dependencies
+flutter_app/.metadata
+flutter_app/pubspec.lock
+
+# IDE
+.vscode/
+.idea/
+.DS_Store

@@ -1,0 +1,181 @@
+import prisma from '../../config/prisma';
+import { get, set } from '../../shared/utils/cache.util';
+
+const CACHE_TTL = 300;
+
+export const getDashboard = async () => {
+  const cacheKey = 'reports:dashboard';
+  const cached   = await get<unknown>(cacheKey);
+  if (cached) return cached;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const [
+    totalProducts, totalOrders, totalUsers,
+    todayOrders, completedOrders, pendingOrders, cancelledOrders,
+    revenueAgg, inventoryAgg, lowStockCount,
+  ] = await Promise.all([
+    prisma.product.count(),
+    prisma.order.count(),
+    prisma.user.count(),
+    prisma.order.count({ where: { createdAt: { gte: today } } }),
+    prisma.order.count({ where: { status: 'COMPLETED' } }),
+    prisma.order.count({ where: { status: 'PENDING' } }),
+    prisma.order.count({ where: { status: 'CANCELLED' } }),
+    prisma.order.aggregate({ where: { status: 'COMPLETED' }, _sum: { totalAmount: true } }),
+    prisma.product.aggregate({ _sum: { quantity: true } }),
+    prisma.product.count({ where: { quantity: { lte: 5 } } }),
+  ]);
+
+  const result = {
+    totalProducts, totalOrders, totalUsers,
+    todayOrders, completedOrders, pendingOrders, cancelledOrders,
+    totalRevenue:    parseFloat((revenueAgg._sum.totalAmount ?? 0).toFixed(2)),
+    totalStockUnits: inventoryAgg._sum.quantity ?? 0,
+    lowStockCount,
+  };
+
+  await set(cacheKey, result, CACHE_TTL);
+  return result;
+};
+
+export const getSalesAnalytics = async ({ from, to, groupBy = 'day' }: { from?: string; to?: string; groupBy?: string } = {}) => {
+  const cacheKey = `reports:sales:${String(from)}:${String(to)}:${groupBy}`;
+  const cached   = await get<unknown>(cacheKey);
+  if (cached) return cached;
+
+  const where: Record<string, unknown> = { status: 'COMPLETED' };
+  if (from || to) {
+    const createdAt: Record<string, Date> = {};
+    if (from) createdAt['gte'] = new Date(from);
+    if (to)   createdAt['lte'] = new Date(to);
+    where['createdAt'] = createdAt;
+  }
+
+  const orders = await prisma.order.findMany({
+    where,
+    select: { totalAmount: true, createdAt: true },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  const grouped: Record<string, { date: string; revenue: number; orders: number }> = {};
+  for (const order of orders) {
+    const d = new Date(order.createdAt);
+    let key: string;
+    if (groupBy === 'month') {
+      key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    } else if (groupBy === 'week') {
+      const weekStart = new Date(d);
+      weekStart.setDate(d.getDate() - d.getDay());
+      key = weekStart.toISOString().split('T')[0]!;
+    } else {
+      key = d.toISOString().split('T')[0]!;
+    }
+    if (!grouped[key]) grouped[key] = { date: key, revenue: 0, orders: 0 };
+    grouped[key]!.revenue += order.totalAmount;
+    grouped[key]!.orders  += 1;
+  }
+
+  const data = Object.values(grouped).map((g) => ({ ...g, revenue: parseFloat(g.revenue.toFixed(2)) }));
+  const result = {
+    data,
+    totalRevenue: parseFloat(data.reduce((s, d) => s + d.revenue, 0).toFixed(2)),
+    totalOrders:  data.reduce((s, d) => s + d.orders, 0),
+  };
+
+  await set(cacheKey, result, CACHE_TTL);
+  return result;
+};
+
+export const getTopProducts = async ({ limit = 10, from, to }: { limit?: string | number; from?: string; to?: string } = {}) => {
+  const cacheKey = `reports:top-products:${String(limit)}:${String(from)}:${String(to)}`;
+  const cached   = await get<unknown>(cacheKey);
+  if (cached) return cached;
+
+  const orderWhere: Record<string, unknown> = { order: { status: 'COMPLETED' } };
+  if (from || to) {
+    const createdAt: Record<string, Date> = {};
+    if (from) createdAt['gte'] = new Date(from);
+    if (to)   createdAt['lte'] = new Date(to);
+    (orderWhere['order'] as Record<string, unknown>)['createdAt'] = createdAt;
+  }
+
+  const items = await prisma.orderItem.groupBy({
+    by: ['productId'],
+    where: orderWhere,
+    _sum:   { quantity: true },
+    _count: { id: true },
+    orderBy: { _sum: { quantity: 'desc' } },
+    take: parseInt(String(limit)),
+  });
+
+  const productIds = items.map((i) => i.productId);
+  const products   = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, name: true, category: true, price: true },
+  });
+  const productMap = Object.fromEntries(products.map((p) => [p.id, p]));
+
+  const result = items.map((item) => {
+    const p = productMap[item.productId];
+    return {
+      id:           p?.id,
+      name:         p?.name,
+      category:     p?.category,
+      totalSold:    item._sum.quantity ?? 0,
+      orderCount:   item._count.id,
+      totalRevenue: parseFloat(((item._sum.quantity ?? 0) * (p?.price ?? 0)).toFixed(2)),
+    };
+  });
+
+  await set(cacheKey, result, CACHE_TTL);
+  return result;
+};
+
+export const getCategoryBreakdown = async () => {
+  const cacheKey = 'reports:category-breakdown';
+  const cached   = await get<unknown>(cacheKey);
+  if (cached) return cached;
+
+  const products = await prisma.product.groupBy({
+    by: ['category'],
+    _count: { id: true },
+    _sum:   { quantity: true },
+  });
+
+  const result = products.map((p) => ({
+    category: p.category,
+    count:    p._count.id,
+    stock:    p._sum.quantity ?? 0,
+  }));
+
+  await set(cacheKey, result, CACHE_TTL);
+  return result;
+};
+
+export const getAuditLogs = async ({ entity, action, userId, page = 1, limit = 50 }: {
+  entity?: string; action?: string; userId?: string; page?: string | number; limit?: string | number;
+} = {}) => {
+  const where: Record<string, unknown> = {};
+  if (entity) where['entity'] = entity;
+  if (action) where['action'] = action;
+  if (userId) where['userId'] = parseInt(String(userId));
+
+  const skip = (parseInt(String(page)) - 1) * parseInt(String(limit));
+  const take = parseInt(String(limit));
+
+  const [logs, total] = await Promise.all([
+    prisma.auditLog.findMany({
+      where, orderBy: { createdAt: 'desc' }, skip, take,
+      select: {
+        id: true, action: true, entity: true, entityId: true,
+        metadata: true, createdAt: true,
+        user: { select: { id: true, name: true, role: true } },
+      },
+    }),
+    prisma.auditLog.count({ where }),
+  ]);
+
+  return { logs, total, page: parseInt(String(page)), limit: take };
+};

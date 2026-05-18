@@ -1,0 +1,116 @@
+import prisma from '../../config/prisma';
+import { getIO } from '../../config/socket';
+import { invalidate } from '../../shared/utils/cache.util';
+import { JwtPayload } from '../../types';
+
+const ORDER_SELECT = {
+  id: true, totalAmount: true, status: true, createdAt: true,
+  user:  { select: { id: true, name: true, email: true } },
+  items: {
+    select: {
+      id: true, quantity: true, price: true,
+      product: { select: { id: true, name: true, imageUrl: true } },
+    },
+  },
+} as const;
+
+interface PaginationInput { page?: string | number; limit?: string | number; }
+interface OrderItemInput  { productId: number; quantity: number; }
+
+export const getAll = async ({ page = 1, limit = 20, status, userId }: PaginationInput & { status?: string; userId?: string } = {}) => {
+  const where: Record<string, unknown> = {};
+  if (status) where['status'] = status;
+  if (userId) where['userId'] = parseInt(String(userId));
+  const skip = (parseInt(String(page)) - 1) * parseInt(String(limit));
+  const take = parseInt(String(limit));
+  const [orders, total] = await Promise.all([
+    prisma.order.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take, select: ORDER_SELECT }),
+    prisma.order.count({ where }),
+  ]);
+  return { orders, total, page: parseInt(String(page)), limit: take };
+};
+
+export const getMyOrders = async (userId: number, { page = 1, limit = 20 }: PaginationInput = {}) => {
+  const skip  = (parseInt(String(page)) - 1) * parseInt(String(limit));
+  const take  = parseInt(String(limit));
+  const where = { userId };
+  const [orders, total] = await Promise.all([
+    prisma.order.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take, select: ORDER_SELECT }),
+    prisma.order.count({ where }),
+  ]);
+  return { orders, total, page: parseInt(String(page)), limit: take };
+};
+
+export const getById = async (id: string | number, requestingUser: JwtPayload) => {
+  const order = await prisma.order.findUnique({ where: { id: parseInt(String(id)) }, select: ORDER_SELECT });
+  if (!order) throw new Error('ORDER_NOT_FOUND');
+  if (requestingUser.role === 'customer' && order.user.id !== requestingUser.id)
+    throw new Error('ORDER_FORBIDDEN');
+  return order;
+};
+
+export const create = async (userId: number, items: OrderItemInput[]) => {
+  const productIds = items.map((i) => i.productId);
+  const products   = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, name: true, price: true, quantity: true },
+  });
+  const productMap = Object.fromEntries(products.map((p) => [p.id, p]));
+
+  for (const item of items) {
+    const product = productMap[item.productId];
+    if (!product)                    throw new Error(`PRODUCT_NOT_FOUND:${item.productId}`);
+    if (product.quantity < item.quantity) throw new Error(`INSUFFICIENT_STOCK:${product.name}`);
+  }
+
+  const totalAmount = items.reduce((sum, item) => sum + (productMap[item.productId]?.price ?? 0) * item.quantity, 0);
+
+  const order = await prisma.$transaction(async (tx) => {
+    for (const item of items) {
+      await tx.product.update({ where: { id: item.productId }, data: { quantity: { decrement: item.quantity } } });
+    }
+    return tx.order.create({
+      data: {
+        userId,
+        totalAmount,
+        items: {
+          create: items.map((item) => ({
+            productId: item.productId,
+            quantity:  item.quantity,
+            price:     productMap[item.productId]?.price ?? 0,
+          })),
+        },
+      },
+      select: ORDER_SELECT,
+    });
+  });
+
+  await invalidate('products:');
+  getIO()?.to('all').emit('order:created', { id: order.id, totalAmount, userId, itemCount: items.length });
+  return order;
+};
+
+export const updateStatus = async (id: string | number, status: string) => {
+  const existing = await prisma.order.findUnique({ where: { id: parseInt(String(id)) } });
+  if (!existing) throw new Error('ORDER_NOT_FOUND');
+  if (existing.status === 'COMPLETED' || existing.status === 'CANCELLED')
+    throw new Error('ORDER_NOT_MODIFIABLE');
+
+  const order = await prisma.order.update({
+    where: { id: parseInt(String(id)) },
+    data:  { status },
+    select: ORDER_SELECT,
+  });
+
+  if (status === 'CANCELLED') {
+    await prisma.$transaction(
+      order.items.map((item) =>
+        prisma.product.update({ where: { id: item.product.id }, data: { quantity: { increment: item.quantity } } }),
+      ),
+    );
+    await invalidate('products:');
+  }
+
+  getIO()?.to('all').emit('order:updated', { id: order.id, status });
+  return order;
+};
