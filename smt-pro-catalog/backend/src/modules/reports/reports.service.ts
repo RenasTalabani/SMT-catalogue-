@@ -14,7 +14,7 @@ export const getDashboard = async () => {
   const [
     totalProducts, totalOrders, totalUsers,
     todayOrders, completedOrders, pendingOrders, cancelledOrders,
-    revenueAgg, inventoryAgg, lowStockCount,
+    revenueAgg, inventoryAgg, lowStockCount, recentOrders,
   ] = await Promise.all([
     prisma.product.count(),
     prisma.order.count(),
@@ -26,6 +26,11 @@ export const getDashboard = async () => {
     prisma.order.aggregate({ where: { status: 'COMPLETED' }, _sum: { totalAmount: true } }),
     prisma.product.aggregate({ _sum: { quantity: true } }),
     prisma.product.count({ where: { quantity: { lte: 5 } } }),
+    prisma.order.findMany({
+      orderBy: { createdAt: 'desc' },
+      take:    10,
+      select:  { id: true, finalAmount: true, status: true, createdAt: true },
+    }),
   ]);
 
   const result = {
@@ -34,6 +39,7 @@ export const getDashboard = async () => {
     totalRevenue:    parseFloat((revenueAgg._sum.totalAmount ?? 0).toFixed(2)),
     totalStockUnits: inventoryAgg._sum.quantity ?? 0,
     lowStockCount,
+    recentOrders,
   };
 
   await set(cacheKey, result, CACHE_TTL);

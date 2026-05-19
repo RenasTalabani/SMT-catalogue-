@@ -55,3 +55,8 @@ export const getProfitLoss = async (req: AuthRequest, res: Response): Promise<vo
   try { success(res, await financeService.getProfitLoss(req.query as Record<string, string>)); }
   catch (e) { resolve(e as Error, res); }
 };
+
+export const getSummary = async (_req: AuthRequest, res: Response): Promise<void> => {
+  try { success(res, await financeService.getSummary()); }
+  catch (e) { resolve(e as Error, res); }
+};

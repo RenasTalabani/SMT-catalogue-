@@ -1,3 +1,5 @@
+import 'dotenv/config';
+import * as Sentry from '@sentry/node';
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import cors from 'cors';
@@ -8,13 +10,14 @@ import logger from './shared/utils/logger.util';
 import { apiLimiter } from './shared/middlewares/rateLimiter.middleware';
 import { ApiError } from './types';
 
-import authRoutes      from './modules/auth/auth.routes';
-import categoryRoutes  from './modules/categories/category.routes';
-import productRoutes   from './modules/products/product.routes';
-import orderRoutes     from './modules/orders/order.routes';
-import inventoryRoutes from './modules/inventory/inventory.routes';
-import financeRoutes   from './modules/finance/finance.routes';
-import reportRoutes    from './modules/reports/reports.routes';
+import authRoutes         from './modules/auth/auth.routes';
+import categoryRoutes     from './modules/categories/category.routes';
+import productRoutes      from './modules/products/product.routes';
+import orderRoutes        from './modules/orders/order.routes';
+import inventoryRoutes    from './modules/inventory/inventory.routes';
+import financeRoutes      from './modules/finance/finance.routes';
+import reportRoutes       from './modules/reports/reports.routes';
+import notificationRoutes from './modules/notifications/notification.routes';
 
 const app = express();
 const isProd = process.env['NODE_ENV'] === 'production';
@@ -60,13 +63,17 @@ app.get('/health', (_req: Request, res: Response) => {
 });
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
-app.use('/api/auth',       authRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/products',   productRoutes);
-app.use('/api/orders',     orderRoutes);
-app.use('/api/inventory',  inventoryRoutes);
-app.use('/api/finance',    financeRoutes);
-app.use('/api/reports',    reportRoutes);
+app.use('/api/auth',          authRoutes);
+app.use('/api/categories',    categoryRoutes);
+app.use('/api/products',      productRoutes);
+app.use('/api/orders',        orderRoutes);
+app.use('/api/inventory',     inventoryRoutes);
+app.use('/api/finance',       financeRoutes);
+app.use('/api/reports',       reportRoutes);
+app.use('/api/notifications', notificationRoutes);
+
+// ─── Sentry error capture (must be before error handler) ─────────────────────
+Sentry.setupExpressErrorHandler(app);
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((req: Request, res: Response) => {

@@ -60,6 +60,25 @@ export const deleteIncome = async (id: string | number): Promise<void> => {
   await prisma.income.delete({ where: { id: parseInt(String(id)) } });
 };
 
+export const getSummary = async () => {
+  const [expenseAgg, incomeAgg, orderAgg, expenses, incomes] = await Promise.all([
+    prisma.expense.aggregate({ _sum: { amount: true } }),
+    prisma.income.aggregate({ _sum: { amount: true } }),
+    prisma.order.aggregate({ where: { status: 'COMPLETED' }, _sum: { totalAmount: true } }),
+    prisma.expense.findMany({ orderBy: { createdAt: 'desc' }, take: 20, select: { id: true, amount: true, category: true, createdAt: true } }),
+    prisma.income.findMany({ orderBy: { createdAt: 'desc' }, take: 20, select: { id: true, amount: true, source: true, createdAt: true } }),
+  ]);
+  const totalExpenses = expenseAgg._sum.amount    ?? 0;
+  const totalIncome   = (incomeAgg._sum.amount ?? 0) + (orderAgg._sum.totalAmount ?? 0);
+  return {
+    totalIncome:   parseFloat(totalIncome.toFixed(2)),
+    totalExpenses: parseFloat(totalExpenses.toFixed(2)),
+    netProfit:     parseFloat((totalIncome - totalExpenses).toFixed(2)),
+    expenses,
+    incomes,
+  };
+};
+
 export const getProfitLoss = async ({ from, to }: { from?: string; to?: string } = {}) => {
   const where: Record<string, unknown> = {};
   if (from || to) {

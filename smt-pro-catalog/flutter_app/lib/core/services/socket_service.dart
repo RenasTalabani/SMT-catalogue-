@@ -3,18 +3,22 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../constants/api_endpoints.dart';
 import '../storage/token_storage.dart';
 
+// userId is stored alongside role/token so the server can route personal events
+const _userIdKey = 'user_id';
+
 /// Events emitted by the backend Socket.IO server.
 class SocketEvent {
-  static const productCreated = 'product:created';
-  static const productUpdated = 'product:updated';
-  static const productDeleted = 'product:deleted';
-  static const orderCreated   = 'order:created';
-  static const orderUpdated   = 'order:updated';
-  static const stockUpdated   = 'stock:updated';
-  static const stockLow       = 'stock:low';
+  static const productCreated  = 'product:created';
+  static const productUpdated  = 'product:updated';
+  static const productDeleted  = 'product:deleted';
+  static const orderCreated    = 'order:created';
+  static const orderUpdated    = 'order:updated';
+  static const stockUpdated    = 'stock:updated';
+  static const stockLow        = 'stock:low';
   static const categoryCreated = 'category:created';
   static const categoryUpdated = 'category:updated';
   static const categoryDeleted = 'category:deleted';
+  static const notificationNew = 'notification:new';
 }
 
 class SocketService {
@@ -27,14 +31,18 @@ class SocketService {
   Future<void> connect() async {
     if (isConnected) return;
 
-    final role  = await TokenStorage.getRole() ?? 'guest';
-    final token = await TokenStorage.getToken();
+    final role   = await TokenStorage.getRole() ?? 'guest';
+    final token  = await TokenStorage.getToken();
+    final userId = await TokenStorage.getUserId();
+
+    final query = <String, dynamic>{'role': role};
+    if (userId != null) query['userId'] = userId;
 
     _socket = io.io(
       ApiEndpoints.baseUrl,
       io.OptionBuilder()
           .setTransports(['websocket', 'polling'])
-          .setQuery({'role': role})
+          .setQuery(query)
           .setExtraHeaders(token != null ? {'Authorization': 'Bearer $token'} : {})
           .enableAutoConnect()
           .enableReconnection()

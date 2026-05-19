@@ -9,6 +9,7 @@ const router = Router();
 
 router.use(protect as RequestHandler, restrictTo('admin', 'employee') as RequestHandler);
 
+router.get('/summary',     financeController.getSummary    as unknown as RequestHandler);
 router.get('/profit-loss', financeController.getProfitLoss as unknown as RequestHandler);
 
 router.get('/expenses',  financeController.getExpenses as unknown as RequestHandler);

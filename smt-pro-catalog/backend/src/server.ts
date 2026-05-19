@@ -1,10 +1,21 @@
 import 'dotenv/config';
+import * as Sentry from '@sentry/node';
 import http from 'http';
 import app from './app';
 import prisma from './config/prisma';
 import logger from './shared/utils/logger.util';
 import { init as initSocket } from './config/socket';
 import { initSocketHandlers } from './modules/realtime/realtime.service';
+
+// ─── Sentry (must be before anything else) ────────────────────────────────────
+if (process.env['SENTRY_DSN']) {
+  Sentry.init({
+    dsn: process.env['SENTRY_DSN'],
+    environment: process.env['NODE_ENV'] ?? 'development',
+    tracesSampleRate: process.env['NODE_ENV'] === 'production' ? 0.1 : 1.0,
+  });
+  logger.info('[sentry] Initialized');
+}
 
 const PORT = process.env['PORT'] ?? 3000;
 const HOST = '0.0.0.0';
@@ -15,16 +26,32 @@ const start = async (): Promise<void> => {
     logger.info('[db]     Database connected');
 
     const httpServer = http.createServer(app);
-    const io         = initSocket(httpServer);
+    const io         = await initSocket(httpServer);
     initSocketHandlers(io);
     logger.info('[socket] Socket.IO initialized');
 
     httpServer.listen(Number(PORT), HOST, () => {
       logger.info(`[server] Running on http://${HOST}:${PORT}`);
       logger.info(`[server] Environment: ${process.env['NODE_ENV'] ?? 'development'}`);
+      logger.info(`[server] Version: 3.0.0`);
     });
+
+    // ─── Graceful shutdown ──────────────────────────────────────────────────────
+    const shutdown = async (signal: string) => {
+      logger.info(`[server] ${signal} received — shutting down gracefully`);
+      await prisma.$disconnect();
+      httpServer.close(() => {
+        logger.info('[server] HTTP server closed');
+        process.exit(0);
+      });
+    };
+
+    process.on('SIGTERM', () => void shutdown('SIGTERM'));
+    process.on('SIGINT',  () => void shutdown('SIGINT'));
+
   } catch (err) {
     logger.error('[server] Failed to start: ' + (err as Error).message);
+    Sentry.captureException(err);
     process.exit(1);
   }
 };

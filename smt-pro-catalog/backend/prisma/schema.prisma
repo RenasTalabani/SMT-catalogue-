@@ -2,30 +2,36 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// DEV: provider = "sqlite"  |  PRODUCTION: provider = "postgresql"
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── Auth / Users ─────────────────────────────────────────────────────────────
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("employee")
-  createdAt DateTime @default(now())
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  password     String
+  role         String   @default("employee")
+  fcmToken     String?
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   orders         Order[]
   expenses       Expense[]       @relation("ExpenseCreator")
   incomes        Income[]        @relation("IncomeCreator")
   stockMovements StockMovement[] @relation("StockEmployee")
   auditLogs      AuditLog[]
+  notifications  Notification[]
 
   @@index([email])
   @@index([role])
+  @@index([isActive])
 }
 
 // ─── Catalogue ────────────────────────────────────────────────────────────────
@@ -36,7 +42,7 @@ model Category {
   nameAr      String?
   nameKu      String?
   slug        String    @unique
-  description String?
+  description String?   @db.Text
   imageUrl    String?
   order       Int       @default(0)
   isActive    Boolean   @default(true)
@@ -56,15 +62,18 @@ model Category {
 model Product {
   id            Int      @id @default(autoincrement())
   name          String
-  description   String?
+  description   String?  @db.Text
   price         Float
+  costPrice     Float    @default(0)
   quantity      Int      @default(0)
+  lowStockAlert Int      @default(5)
   imageUrl      String?
   imagePublicId String?
   categoryId    Int?
   category      String
   sku           String?  @unique
-  barcode       String?
+  barcode       String?  @unique
+  unit          String   @default("piece")
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -78,18 +87,24 @@ model Product {
   @@index([quantity])
   @@index([isActive])
   @@index([createdAt])
+  @@index([barcode])
 }
 
-// ─── Orders ───────────────────────────────────────────────────────────────────
+// ─── Orders / POS ─────────────────────────────────────────────────────────────
 
 model Order {
-  id          Int      @id @default(autoincrement())
-  userId      Int
-  totalAmount Float
-  status      String   @default("PENDING")
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  totalAmount   Float
+  discount      Float    @default(0)
+  tax           Float    @default(0)
+  finalAmount   Float    @default(0)
+  status        String   @default("PENDING")
+  paymentMethod String   @default("CASH")
+  notes         String?  @db.Text
+  receiptUrl    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   user  User        @relation(fields: [userId], references: [id])
   items OrderItem[]
@@ -97,6 +112,7 @@ model Order {
   @@index([createdAt])
   @@index([status])
   @@index([userId])
+  @@index([paymentMethod])
 }
 
 model OrderItem {
@@ -105,6 +121,7 @@ model OrderItem {
   productId Int
   quantity  Int
   price     Float
+  discount  Float @default(0)
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id])
@@ -119,7 +136,7 @@ model Expense {
   id        Int      @id @default(autoincrement())
   amount    Float
   category  String
-  notes     String?
+  notes     String?  @db.Text
   createdBy Int
   createdAt DateTime @default(now())
 
@@ -134,7 +151,7 @@ model Income {
   id        Int      @id @default(autoincrement())
   amount    Float
   source    String
-  notes     String?
+  notes     String?  @db.Text
   createdBy Int
   createdAt DateTime @default(now())
 
@@ -142,19 +159,23 @@ model Income {
 
   @@index([createdAt])
   @@index([createdBy])
+  @@index([source])
 }
 
 // ─── Inventory ────────────────────────────────────────────────────────────────
 
 model Supplier {
-  id        Int      @id @default(autoincrement())
-  name      String
-  phone     String?
-  email     String?  @unique
-  address   String?
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             Int             @id @default(autoincrement())
+  name           String
+  phone          String?
+  email          String?         @unique
+  address        String?         @db.Text
+  notes          String?         @db.Text
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  stockMovements StockMovement[]
+
+  @@index([name])
 }
 
 model StockMovement {
@@ -164,16 +185,38 @@ model StockMovement {
   quantity    Int
   previousQty Int
   newQty      Int
-  notes       String?
+  notes       String?  @db.Text
   employeeId  Int
   supplierId  Int?
+  reference   String?
   createdAt   DateTime @default(now())
 
-  product  Product @relation(fields: [productId], references: [id])
-  employee User    @relation("StockEmployee", fields: [employeeId], references: [id])
+  product  Product   @relation(fields: [productId], references: [id])
+  employee User      @relation("StockEmployee", fields: [employeeId], references: [id])
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
 
   @@index([productId])
   @@index([employeeId])
+  @@index([createdAt])
+  @@index([type])
+}
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  title     String
+  body      String   @db.Text
+  type      String   @default("info")
+  isRead    Boolean  @default(false)
+  data      Json?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
   @@index([createdAt])
   @@index([type])
 }
@@ -186,8 +229,9 @@ model AuditLog {
   action    String
   entity    String
   entityId  Int?
-  metadata  String?
+  metadata  Json?
   ipAddress String?
+  userAgent String?
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])

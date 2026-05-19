@@ -47,6 +47,15 @@ dependencies:
   # Real-time
   socket_io_client: ^2.0.3+1
 
+  # Push notifications
+  firebase_core: ^3.1.0
+  firebase_messaging: ^15.0.1
+  flutter_local_notifications: ^17.2.2
+
+  # Offline cache
+  sqflite: ^2.3.3+1
+  path: ^1.9.0
+
   # Storage
   shared_preferences: ^2.2.3
 

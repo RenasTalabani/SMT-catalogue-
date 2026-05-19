@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import * as authService from './auth.service';
 import { success, error } from '../../shared/utils/response.util';
+import { AuthRequest } from '../../types';
+import prisma from '../../config/prisma';
 
 const ERR: Record<string, { s: number; m: string }> = {
   EMAIL_TAKEN:         { s: 409, m: 'This email is already registered' },
@@ -24,4 +26,15 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const result = await authService.login(req.body as { email: string; password: string });
     success(res, result, 'Login successful');
   } catch (e) { resolve(e as Error, res, 'Login failed'); }
+};
+
+export const updateFcmToken = async (req: AuthRequest, res: Response): Promise<void> => {
+  const { fcmToken } = req.body as { fcmToken: string };
+  if (!fcmToken) { error(res, 'fcmToken is required', 400); return; }
+
+  await prisma.user.update({
+    where: { id: req.user!.id },
+    data:  { fcmToken },
+  });
+  success(res, { message: 'FCM token updated' });
 };

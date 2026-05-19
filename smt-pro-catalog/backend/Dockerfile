@@ -1,29 +1,40 @@
-FROM node:22-alpine AS deps
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --omit=dev
+# ─── Stage 1: Build ───────────────────────────────────────────────────────────
+FROM node:20-alpine AS builder
 
-# Generate Prisma client (needs schema copied first)
-COPY prisma ./prisma
+WORKDIR /app
+
+COPY package*.json ./
+COPY prisma ./prisma/
+COPY tsconfig.json ./
+COPY src ./src/
+
+RUN npm ci --include=dev
+RUN npm run build
 RUN npx prisma generate
 
-FROM node:22-alpine AS runner
+# ─── Stage 2: Production ──────────────────────────────────────────────────────
+FROM node:20-alpine AS production
+
 WORKDIR /app
 
-# Non-root user for security
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+ENV NODE_ENV=production
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+RUN addgroup -g 1001 -S nodejs && adduser -S nodeuser -u 1001
 
-RUN mkdir -p logs && chown -R appuser:appgroup /app
+COPY package*.json ./
+COPY prisma ./prisma/
 
-USER appuser
+RUN npm ci --omit=dev && npm cache clean --force
+
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+RUN mkdir -p public/uploads && chown -R nodeuser:nodejs /app
+
+USER nodeuser
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD wget -qO- http://localhost:3000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
-# Run migrations then start the server
-CMD ["sh", "-c", "npx prisma migrate deploy && node src/server.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
