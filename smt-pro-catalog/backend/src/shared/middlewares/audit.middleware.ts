@@ -17,7 +17,7 @@ export const audit = async (
         action,
         entity,
         entityId,
-        metadata: metadata ? JSON.stringify(metadata) : null,
+        metadata: metadata ? JSON.stringify(metadata) : undefined,
       },
     });
   } catch (err) {

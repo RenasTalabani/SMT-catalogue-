@@ -17,7 +17,7 @@ export const createNotification = async (input: CreateNotificationInput) => {
       title:  input.title,
       body:   input.body,
       type:   input.type ?? 'info',
-      data:   input.data ?? null,
+      data:   input.data ? (input.data as import('@prisma/client').Prisma.InputJsonValue) : undefined,
     },
   });
 
