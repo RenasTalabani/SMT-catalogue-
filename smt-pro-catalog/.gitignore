@@ -3,7 +3,7 @@ backend/node_modules/
 backend/npm-debug.log*
 backend/yarn-debug.log*
 backend/yarn-error.log*
-backend/package-lock.json
+# backend/package-lock.json  # needed for Railway ci builds
 backend/.env
 
 # Logs
