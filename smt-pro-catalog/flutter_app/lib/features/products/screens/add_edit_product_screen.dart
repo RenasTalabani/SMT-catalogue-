@@ -105,7 +105,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
               _field(
                 controller: _nameCtrl,
                 label: 'Product Name',
-                hint: 'e.g. SMT Resistor 100Ω',
+                hint: 'e.g. Resistor 100Ω',
                 icon: Icons.inventory_2_outlined,
                 validator: (v) => (v == null || v.trim().length < 2) ? 'Name must be at least 2 characters' : null,
               ),

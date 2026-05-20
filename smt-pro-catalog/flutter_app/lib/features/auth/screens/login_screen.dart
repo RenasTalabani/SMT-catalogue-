@@ -99,7 +99,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       child: const Icon(Icons.inventory_2_rounded, size: 44, color: Colors.white),
     ),
     const SizedBox(height: 20),
-    const Text('SMT Pro Catalogue',
+    const Text('DaralIraq',
         style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: -0.5)),
     const SizedBox(height: 6),
     Text('Enterprise Inventory & Sales Platform',
@@ -180,7 +180,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   );
 
   Widget _buildFooter() => Text(
-    'SMT Pro Catalogue v2.0  •  Enterprise Edition',
+    'DaralIraq v3.0  •  Enterprise Edition',
     style: TextStyle(fontSize: 11, color: Colors.white.withAlpha(115)),
     textAlign: TextAlign.center,
   );
