@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: smt-pro-catalog-api
+    name: daraliraq-api
     runtime: docker
     dockerfilePath: ./Dockerfile
     region: frankfurt

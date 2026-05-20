@@ -74,7 +74,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: smt-pro-catalog-release.apk
+          name: daraliraq-release.apk
           path: flutter_app/build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
 
@@ -87,4 +87,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build backend image
-        run: docker build ./backend -t smt-catalog-backend:ci
+        run: docker build ./backend -t daraliraq-backend:ci

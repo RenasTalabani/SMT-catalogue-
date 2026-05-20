@@ -33,9 +33,9 @@ export const useAuthStore = create<AuthState>()(
           );
           const { token, user } = res.data.data;
           if (typeof window !== 'undefined') {
-            localStorage.setItem('smt_token',   token);
-            localStorage.setItem('smt_role',    user.role);
-            localStorage.setItem('smt_user_id', String(user.id));
+            localStorage.setItem('daraliraq_token',   token);
+            localStorage.setItem('daraliraq_role',    user.role);
+            localStorage.setItem('daraliraq_user_id', String(user.id));
           }
           set({ user, token, isLoading: false });
         } catch (err) {
@@ -46,15 +46,15 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('smt_token');
-          localStorage.removeItem('smt_role');
-          localStorage.removeItem('smt_user_id');
+          localStorage.removeItem('daraliraq_token');
+          localStorage.removeItem('daraliraq_role');
+          localStorage.removeItem('daraliraq_user_id');
         }
         set({ user: null, token: null });
       },
     }),
     {
-      name:    'smt-auth',
+      name:    'daraliraq-auth',
       partialize: (s) => ({ user: s.user, token: s.token }),
     },
   ),

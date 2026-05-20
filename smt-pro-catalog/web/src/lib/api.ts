@@ -12,7 +12,7 @@ export const api = axios.create({
 // Attach Bearer token on every request
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('smt_token');
+    const token = localStorage.getItem('daraliraq_token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
   }
   return config;

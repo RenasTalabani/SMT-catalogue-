@@ -76,7 +76,7 @@ class SettingsScreen extends ConsumerWidget {
                     icon: Icons.info_outline_rounded,
                     iconColor: const Color(0xFF6366F1),
                     title: 'Version',
-                    subtitle: 'SMT Pro ERP v3.0.0',
+                    subtitle: 'DaralIraq v3.0.0',
                     isDark: isDark,
                   ),
                   _divider(isDark),

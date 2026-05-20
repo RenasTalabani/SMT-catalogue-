@@ -6,7 +6,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: smt-catalog-api
+    container_name: daraliraq-api
     expose:
       - '3000'
     environment:
@@ -32,7 +32,7 @@ services:
       - backend_uploads:/app/public/uploads
     restart: unless-stopped
     networks:
-      - smt-network
+      - daraliraq-network
 
   # ─── Next.js Web Dashboard ───────────────────────────────────────────────────
   web:
@@ -41,7 +41,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
-    container_name: smt-catalog-web
+    container_name: daraliraq-web
     expose:
       - '4000'
     environment:
@@ -50,12 +50,12 @@ services:
       - backend
     restart: unless-stopped
     networks:
-      - smt-network
+      - daraliraq-network
 
   # ─── Nginx Reverse Proxy ──────────────────────────────────────────────────────
   nginx:
     image: nginx:1.27-alpine
-    container_name: smt-catalog-nginx
+    container_name: daraliraq-nginx
     ports:
       - '80:80'
       - '443:443'
@@ -66,12 +66,12 @@ services:
       - backend
     restart: unless-stopped
     networks:
-      - smt-network
+      - daraliraq-network
 
   # ─── PostgreSQL ───────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
-    container_name: smt-catalog-postgres
+    container_name: daraliraq-postgres
     ports:
       - '${POSTGRES_PORT:-5432}:5432'
     environment:
@@ -88,12 +88,12 @@ services:
       start_period: 20s
     restart: unless-stopped
     networks:
-      - smt-network
+      - daraliraq-network
 
   # ─── Redis Cache ──────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: smt-catalog-redis
+    container_name: daraliraq-redis
     ports:
       - '${REDIS_PORT:-6379}:6379'
     command: redis-server --save 60 1 --loglevel warning
@@ -106,7 +106,7 @@ services:
       retries: 5
     restart: unless-stopped
     networks:
-      - smt-network
+      - daraliraq-network
 
 volumes:
   postgres_data:
@@ -114,5 +114,5 @@ volumes:
   backend_uploads:
 
 networks:
-  smt-network:
+  daraliraq-network:
     driver: bridge

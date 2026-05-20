@@ -1,7 +1,7 @@
 {
-  "name": "smt-pro-catalog-web",
+  "name": "daraliraq-web",
   "version": "1.0.0",
-  "description": "SMT Pro Catalog — Admin Web Dashboard (Next.js)",
+  "description": "DaralIraq — Admin Web Dashboard (Next.js)",
   "private": true,
   "scripts": {
     "dev":   "next dev -p 4000",

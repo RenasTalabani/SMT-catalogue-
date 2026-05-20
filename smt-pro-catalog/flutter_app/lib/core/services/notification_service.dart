@@ -18,8 +18,8 @@ class NotificationService {
   final _local  = FlutterLocalNotificationsPlugin();
 
   static const _channel = AndroidNotificationChannel(
-    'smt_default',
-    'SMT Notifications',
+    'daraliraq_default',
+    'DaralIraq Notifications',
     description: 'General app notifications',
     importance: Importance.high,
   );

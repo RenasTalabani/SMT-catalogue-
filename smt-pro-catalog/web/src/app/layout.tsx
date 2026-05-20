@@ -7,8 +7,8 @@ import QueryProvider from './providers';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title:       'SMT Pro Catalog — Admin',
-  description: 'Enterprise inventory, orders and finance management',
+  title:       'DaralIraq — Admin',
+  description: 'DaralIraq enterprise inventory, orders and finance management',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

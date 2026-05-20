@@ -55,7 +55,7 @@ app.use('/api', apiLimiter);
 app.get('/health', (_req: Request, res: Response) => {
   res.json({
     status:      'ok',
-    service:     'SMT Catalogue API',
+    service:     'DaralIraq API',
     version:     '3.0.0',
     environment: process.env['NODE_ENV'] ?? 'development',
     timestamp:   new Date().toISOString(),

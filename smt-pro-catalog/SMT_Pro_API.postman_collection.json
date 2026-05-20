@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "SMT Pro Catalogue API",
-    "description": "Full REST API for SMT Pro Catalogue — auth, products, categories, orders, inventory, finance, reports, notifications.",
+    "name": "DaralIraq API",
+    "description": "Full REST API for DaralIraq — auth, products, categories, orders, inventory, finance, reports, notifications.",
     "_postman_id": "smt-pro-v3",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },

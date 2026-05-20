@@ -27,9 +27,9 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="flex h-16 items-center gap-2 border-b border-gray-200 px-6 dark:border-gray-800">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white font-bold text-sm">
-          S
+          D
         </div>
-        <span className="font-semibold text-gray-900 dark:text-white">SMT Catalog</span>
+        <span className="font-semibold text-gray-900 dark:text-white">DaralIraq</span>
       </div>
 
       {/* Navigation */}

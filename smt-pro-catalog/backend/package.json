@@ -1,7 +1,7 @@
 {
-  "name": "smt-pro-catalog-backend",
+  "name": "daraliraq-backend",
   "version": "3.0.0",
-  "description": "SMT Pro Catalog System — Enterprise REST API (TypeScript Edition)",
+  "description": "DaralIraq — Enterprise REST API (TypeScript Edition)",
   "main": "dist/server.js",
   "scripts": {
     "start": "node dist/server.js",
