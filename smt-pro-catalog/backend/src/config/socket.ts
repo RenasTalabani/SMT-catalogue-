@@ -26,6 +26,7 @@ export const init = async (httpServer: HttpServer): Promise<Server> => {
     try {
       const pubClient = redis.duplicate();
       const subClient = redis.duplicate();
+      await Promise.all([pubClient.connect(), subClient.connect()]);
       _io.adapter(createAdapter(pubClient, subClient));
       logger.info('[socket] Redis adapter attached');
     } catch (err) {

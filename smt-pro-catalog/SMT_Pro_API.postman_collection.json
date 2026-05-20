@@ -1,20 +1,20 @@
 {
   "info": {
     "name": "SMT Pro Catalogue API",
-    "description": "Full API collection for SMT Pro Catalogue — Auth, Products, Orders, Inventory, Finance, Reports",
+    "description": "Full REST API for SMT Pro Catalogue — auth, products, categories, orders, inventory, finance, reports, notifications.",
+    "_postman_id": "smt-pro-v3",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    {
-      "key": "baseUrl",
-      "value": "https://748e6790bc1a41.lhr.life",
-      "description": "Change this to your tunnel URL or http://localhost:3000 for local"
-    },
-    {
-      "key": "token",
-      "value": "",
-      "description": "Paste your JWT here after login (or use the Login request — it sets it automatically)"
-    }
+    { "key": "base_url",         "value": "http://localhost:3000", "type": "string" },
+    { "key": "token",            "value": "",                      "type": "string" },
+    { "key": "product_id",       "value": "1",                     "type": "string" },
+    { "key": "category_id",      "value": "1",                     "type": "string" },
+    { "key": "order_id",         "value": "1",                     "type": "string" },
+    { "key": "supplier_id",      "value": "1",                     "type": "string" },
+    { "key": "expense_id",       "value": "1",                     "type": "string" },
+    { "key": "income_id",        "value": "1",                     "type": "string" },
+    { "key": "notification_id",  "value": "1",                     "type": "string" }
   ],
   "auth": {
     "type": "bearer",
@@ -23,32 +23,56 @@
   "item": [
 
     {
+      "name": "🟢 Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
       "name": "🔐 Auth",
       "item": [
         {
           "name": "Register",
           "request": {
             "method": "POST",
-            "url": "{{baseUrl}}/api/auth/register",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"secret123\"\n}"
+              "raw": "{\n  \"name\": \"Admin User\",\n  \"email\": \"admin@smt.com\",\n  \"password\": \"Admin123!\",\n  \"role\": \"admin\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
             }
           },
           "response": []
         },
         {
-          "name": "Login",
+          "name": "Login  ← saves token automatically",
           "event": [
             {
               "listen": "test",
               "script": {
+                "type": "text/javascript",
                 "exec": [
                   "const json = pm.response.json();",
                   "if (json.data && json.data.token) {",
                   "  pm.collectionVariables.set('token', json.data.token);",
-                  "  console.log('Token saved:', json.data.token.substring(0,20) + '...');",
+                  "  console.log('✅ Token saved');",
                   "}"
                 ]
               }
@@ -56,11 +80,135 @@
           ],
           "request": {
             "method": "POST",
-            "url": "{{baseUrl}}/api/auth/login",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"secret123\"\n}"
+              "raw": "{\n  \"email\": \"admin@smt.com\",\n  \"password\": \"Admin123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update FCM Token (push notifications)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fcmToken\": \"your-firebase-device-token-here\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/fcm-token",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "fcm-token"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "📁 Categories",
+      "item": [
+        {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/categories?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "categories"],
+              "query": [
+                { "key": "page",   "value": "1" },
+                { "key": "limit",  "value": "20" },
+                { "key": "search", "value": "", "disabled": true }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Category by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/categories/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "categories", "{{category_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Category  (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('category_id', json.data.id);",
+                  "  console.log('category_id =', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Resistors\",\n  \"description\": \"SMD and through-hole resistors\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/categories",
+              "host": ["{{base_url}}"],
+              "path": ["api", "categories"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Category  (admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Resistors & Potentiometers\",\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/categories/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "categories", "{{category_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Category  (admin)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/categories/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "categories", "{{category_id}}"]
             }
           },
           "response": []
@@ -72,18 +220,20 @@
       "name": "📦 Products",
       "item": [
         {
-          "name": "Get All Products",
+          "name": "List Products",
           "request": {
             "method": "GET",
+            "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/products?page=1&limit=20",
-              "host": ["{{baseUrl}}"],
+              "raw": "{{base_url}}/api/products?page=1&limit=20",
+              "host": ["{{base_url}}"],
               "path": ["api", "products"],
               "query": [
-                { "key": "page",     "value": "1",    "description": "Page number (default: 1)" },
-                { "key": "limit",    "value": "20",   "description": "Items per page (default: 20)" },
-                { "key": "search",   "value": "",     "description": "Search by name or description", "disabled": true },
-                { "key": "category", "value": "",     "description": "Filter by category name", "disabled": true }
+                { "key": "page",     "value": "1" },
+                { "key": "limit",    "value": "20" },
+                { "key": "search",   "value": "",     "disabled": true },
+                { "key": "category", "value": "",     "disabled": true },
+                { "key": "isActive", "value": "true", "disabled": true }
               ]
             }
           },
@@ -93,47 +243,105 @@
           "name": "Get Product by ID",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/products/1"
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "products", "{{product_id}}"]
+            }
           },
           "response": []
         },
         {
-          "name": "Create Product",
+          "name": "Create Product — JSON  (admin/employee)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('product_id', json.data.id);",
+                  "  console.log('product_id =', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "POST",
-            "url": "{{baseUrl}}/api/products",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"SMT Resistor 100Ω 0402\",\n  \"category\": \"Resistors\",\n  \"price\": 0.05,\n  \"quantity\": 1000,\n  \"description\": \"0402 package, 100 ohm, 1% tolerance\"\n}"
+              "raw": "{\n  \"name\": \"SMT Resistor 10kΩ 0402\",\n  \"category\": \"Resistors\",\n  \"sku\": \"RES-10K-0402\",\n  \"price\": 0.05,\n  \"quantity\": 10000,\n  \"lowStockAlert\": 500,\n  \"description\": \"1% tolerance, 100mW, 0402 package\",\n  \"isActive\": true\n}"
             },
-            "description": "Requires admin or employee role. Image upload: use form-data with 'image' field instead of JSON."
+            "url": {
+              "raw": "{{base_url}}/api/products",
+              "host": ["{{base_url}}"],
+              "path": ["api", "products"]
+            }
           },
           "response": []
         },
         {
-          "name": "Update Product",
+          "name": "Create Product — with Image  (admin/employee)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "name",          "value": "SMT Capacitor 100nF 0603", "type": "text" },
+                { "key": "category",      "value": "Capacitors",               "type": "text" },
+                { "key": "sku",           "value": "CAP-100NF-0603",           "type": "text" },
+                { "key": "price",         "value": "0.03",                     "type": "text" },
+                { "key": "quantity",      "value": "5000",                     "type": "text" },
+                { "key": "lowStockAlert", "value": "200",                      "type": "text" },
+                { "key": "description",   "value": "X7R dielectric, 10V, 0603","type": "text" },
+                { "key": "isActive",      "value": "true",                     "type": "text" },
+                { "key": "image",         "src": [],                           "type": "file", "description": "jpg/png/webp — uploads to Cloudinary" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/products",
+              "host": ["{{base_url}}"],
+              "path": ["api", "products"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Product  (admin/employee)",
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "PUT",
-            "url": "{{baseUrl}}/api/products/1",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"price\": 0.08,\n  \"quantity\": 800\n}"
+              "raw": "{\n  \"price\": 0.06,\n  \"quantity\": 9500,\n  \"lowStockAlert\": 400,\n  \"isActive\": true\n}"
             },
-            "description": "Send only the fields you want to update."
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "products", "{{product_id}}"]
+            }
           },
           "response": []
         },
         {
-          "name": "Delete Product",
+          "name": "Delete Product  (admin only)",
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "DELETE",
-            "url": "{{baseUrl}}/api/products/1",
-            "description": "Requires admin role."
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "products", "{{product_id}}"]
+            }
           },
           "response": []
         }
@@ -144,20 +352,36 @@
       "name": "🛒 Orders",
       "item": [
         {
-          "name": "Get All Orders (Admin/Employee)",
+          "name": "List All Orders  (admin/employee)",
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "GET",
-            "url": "{{baseUrl}}/api/orders"
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/orders?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders"],
+              "query": [
+                { "key": "page",   "value": "1" },
+                { "key": "limit",  "value": "20" },
+                { "key": "status", "value": "", "disabled": true, "description": "pending | confirmed | processing | shipped | delivered | cancelled" },
+                { "key": "search", "value": "", "disabled": true }
+              ]
+            }
           },
           "response": []
         },
         {
-          "name": "Get My Orders",
+          "name": "My Orders  (current user)",
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "GET",
-            "url": "{{baseUrl}}/api/orders/my"
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/orders/my",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "my"]
+            }
           },
           "response": []
         },
@@ -166,37 +390,64 @@
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "GET",
-            "url": "{{baseUrl}}/api/orders/1"
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "{{order_id}}"]
+            }
           },
           "response": []
         },
         {
           "name": "Create Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('order_id', json.data.id);",
+                  "  console.log('order_id =', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "POST",
-            "url": "{{baseUrl}}/api/orders",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"items\": [\n    { \"productId\": 1, \"quantity\": 10 },\n    { \"productId\": 2, \"quantity\": 5 }\n  ]\n}"
+              "raw": "{\n  \"items\": [\n    { \"productId\": 1, \"quantity\": 100, \"unitPrice\": 0.05 },\n    { \"productId\": 2, \"quantity\": 50,  \"unitPrice\": 0.03 }\n  ],\n  \"discount\": 0,\n  \"notes\": \"Urgent order for production line\"\n}"
             },
-            "description": "Stock is deducted automatically. Fails if insufficient stock."
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders"]
+            }
           },
           "response": []
         },
         {
-          "name": "Update Order Status",
+          "name": "Update Order Status  (admin/employee)",
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "PATCH",
-            "url": "{{baseUrl}}/api/orders/1/status",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"status\": \"COMPLETED\"\n}"
+              "raw": "{\n  \"status\": \"confirmed\",\n  \"notes\": \"Confirmed and ready to process\"\n}"
             },
-            "description": "status must be: PENDING | COMPLETED | CANCELLED\nCANCELLED restores stock automatically."
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "{{order_id}}", "status"]
+            },
+            "description": "Valid status values: pending → confirmed → processing → shipped → delivered | cancelled"
           },
           "response": []
         }
@@ -207,96 +458,134 @@
       "name": "🏭 Inventory",
       "item": [
         {
-          "name": "Get Inventory Value & Low Stock",
+          "name": "List Stock Movements",
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "GET",
+            "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/inventory/value?lowStockThreshold=5",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "inventory", "value"],
-              "query": [
-                { "key": "lowStockThreshold", "value": "5", "description": "Products with qty <= this value are flagged" }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Get Stock Movements",
-          "request": {
-            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
-            "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/api/inventory/movements?page=1&limit=50",
-              "host": ["{{baseUrl}}"],
+              "raw": "{{base_url}}/api/inventory/movements?page=1&limit=20",
+              "host": ["{{base_url}}"],
               "path": ["api", "inventory", "movements"],
               "query": [
-                { "key": "page",  "value": "1" },
-                { "key": "limit", "value": "50" }
+                { "key": "page",      "value": "1" },
+                { "key": "limit",     "value": "20" },
+                { "key": "productId", "value": "", "disabled": true },
+                { "key": "type",      "value": "", "disabled": true, "description": "IN | OUT | ADJUSTMENT | RETURN" }
               ]
             }
           },
           "response": []
         },
         {
-          "name": "Record Stock Movement",
+          "name": "Record Stock Movement  (admin/employee)",
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "POST",
-            "url": "{{baseUrl}}/api/inventory/movements",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"productId\": 1,\n  \"type\": \"IN\",\n  \"quantity\": 500,\n  \"notes\": \"Restocked from supplier\"\n}"
+              "raw": "{\n  \"productId\": {{product_id}},\n  \"type\": \"IN\",\n  \"quantity\": 5000,\n  \"reason\": \"Supplier delivery — PO #1234\",\n  \"supplierId\": {{supplier_id}}\n}"
             },
-            "description": "type must be: IN | OUT | ADJUSTMENT | RETURN\nIN and RETURN increase stock. OUT decreases stock."
+            "url": {
+              "raw": "{{base_url}}/api/inventory/movements",
+              "host": ["{{base_url}}"],
+              "path": ["api", "inventory", "movements"]
+            },
+            "description": "type: IN | OUT | ADJUSTMENT | RETURN"
           },
           "response": []
         },
         {
-          "name": "Get Suppliers",
+          "name": "Get Total Inventory Value",
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "GET",
-            "url": "{{baseUrl}}/api/inventory/suppliers"
-          },
-          "response": []
-        },
-        {
-          "name": "Create Supplier (Admin)",
-          "request": {
-            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
-            "method": "POST",
-            "url": "{{baseUrl}}/api/inventory/suppliers",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Acme Electronics\",\n  \"phone\": \"+1 555-0100\",\n  \"email\": \"orders@acme.com\",\n  \"address\": \"123 Industrial Blvd, TX\"\n}"
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/inventory/value",
+              "host": ["{{base_url}}"],
+              "path": ["api", "inventory", "value"]
             }
           },
           "response": []
         },
         {
-          "name": "Update Supplier (Admin)",
+          "name": "List Suppliers",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/inventory/suppliers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "inventory", "suppliers"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Supplier  (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('supplier_id', json.data.id);",
+                  "  console.log('supplier_id =', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"LCSC Electronics\",\n  \"email\": \"sales@lcsc.com\",\n  \"phone\": \"+86-755-12345678\",\n  \"address\": \"Shenzhen, China\",\n  \"contactPerson\": \"Wang Li\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/inventory/suppliers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "inventory", "suppliers"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Supplier  (admin)",
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "PUT",
-            "url": "{{baseUrl}}/api/inventory/suppliers/1",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Acme Electronics Ltd\",\n  \"phone\": \"+1 555-0199\"\n}"
+              "raw": "{\n  \"name\": \"LCSC Electronics Co. Ltd\",\n  \"phone\": \"+86-755-99999999\",\n  \"address\": \"Shenzhen, Guangdong, China\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/inventory/suppliers/{{supplier_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "inventory", "suppliers", "{{supplier_id}}"]
             }
           },
           "response": []
         },
         {
-          "name": "Delete Supplier (Admin)",
+          "name": "Delete Supplier  (admin)",
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "DELETE",
-            "url": "{{baseUrl}}/api/inventory/suppliers/1"
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/inventory/suppliers/{{supplier_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "inventory", "suppliers", "{{supplier_id}}"]
+            }
           },
           "response": []
         }
@@ -307,85 +596,158 @@
       "name": "💰 Finance",
       "item": [
         {
-          "name": "Get Profit & Loss",
+          "name": "Finance Summary",
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "GET",
+            "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/finance/profit-loss?from=2025-01-01&to=2025-12-31",
-              "host": ["{{baseUrl}}"],
+              "raw": "{{base_url}}/api/finance/summary",
+              "host": ["{{base_url}}"],
+              "path": ["api", "finance", "summary"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Profit & Loss Report",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/finance/profit-loss?from=2026-01-01&to=2026-12-31",
+              "host": ["{{base_url}}"],
               "path": ["api", "finance", "profit-loss"],
               "query": [
-                { "key": "from", "value": "2025-01-01", "description": "ISO date (YYYY-MM-DD)" },
-                { "key": "to",   "value": "2025-12-31", "description": "ISO date (YYYY-MM-DD)" }
+                { "key": "from", "value": "2026-01-01" },
+                { "key": "to",   "value": "2026-12-31" }
               ]
             }
           },
           "response": []
         },
         {
-          "name": "Get Expenses",
+          "name": "List Expenses",
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "GET",
-            "url": "{{baseUrl}}/api/finance/expenses"
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/finance/expenses?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "finance", "expenses"],
+              "query": [
+                { "key": "page",  "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
           },
           "response": []
         },
         {
-          "name": "Create Expense",
+          "name": "Create Expense  (admin/employee)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) pm.collectionVariables.set('expense_id', json.data.id);"
+                ]
+              }
+            }
+          ],
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "POST",
-            "url": "{{baseUrl}}/api/finance/expenses",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"amount\": 1200.00,\n  \"category\": \"RENT\",\n  \"notes\": \"Monthly warehouse rent\"\n}"
+              "raw": "{\n  \"title\": \"Monthly Office Rent\",\n  \"amount\": 1200.00,\n  \"category\": \"Rent\",\n  \"date\": \"2026-05-01\",\n  \"notes\": \"May 2026 rent payment\"\n}"
             },
-            "description": "category must be: SUPPLIES | RENT | UTILITIES | SALARIES | MARKETING | MAINTENANCE | OTHER"
+            "url": {
+              "raw": "{{base_url}}/api/finance/expenses",
+              "host": ["{{base_url}}"],
+              "path": ["api", "finance", "expenses"]
+            }
           },
           "response": []
         },
         {
-          "name": "Delete Expense (Admin)",
+          "name": "Delete Expense  (admin)",
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "DELETE",
-            "url": "{{baseUrl}}/api/finance/expenses/1"
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/finance/expenses/{{expense_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "finance", "expenses", "{{expense_id}}"]
+            }
           },
           "response": []
         },
         {
-          "name": "Get Incomes",
+          "name": "List Incomes",
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "GET",
-            "url": "{{baseUrl}}/api/finance/incomes"
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/finance/incomes?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "finance", "incomes"],
+              "query": [
+                { "key": "page",  "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
           },
           "response": []
         },
         {
-          "name": "Create Income",
+          "name": "Create Income  (admin/employee)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) pm.collectionVariables.set('income_id', json.data.id);"
+                ]
+              }
+            }
+          ],
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "POST",
-            "url": "{{baseUrl}}/api/finance/incomes",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"amount\": 500.00,\n  \"source\": \"OTHER\",\n  \"notes\": \"Consulting fee\"\n}"
+              "raw": "{\n  \"title\": \"Order #1042 Payment\",\n  \"amount\": 8750.00,\n  \"category\": \"Sales\",\n  \"date\": \"2026-05-20\",\n  \"notes\": \"Wire transfer received\"\n}"
             },
-            "description": "source must be: SALES | RETURNS | OTHER"
+            "url": {
+              "raw": "{{base_url}}/api/finance/incomes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "finance", "incomes"]
+            }
           },
           "response": []
         },
         {
-          "name": "Delete Income (Admin)",
+          "name": "Delete Income  (admin)",
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "DELETE",
-            "url": "{{baseUrl}}/api/finance/incomes/1"
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/finance/incomes/{{income_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "finance", "incomes", "{{income_id}}"]
+            }
           },
           "response": []
         }
@@ -396,12 +758,16 @@
       "name": "📊 Reports",
       "item": [
         {
-          "name": "Dashboard Summary",
+          "name": "Dashboard KPIs",
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "GET",
-            "url": "{{baseUrl}}/api/reports/dashboard",
-            "description": "Returns: totalProducts, totalOrders, pendingOrders, cancelledOrders, totalRevenue, topProducts[5], recentOrders[5]"
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/reports/dashboard",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reports", "dashboard"]
+            }
           },
           "response": []
         },
@@ -410,14 +776,15 @@
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "GET",
+            "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/reports/sales?from=2025-05-01&to=2025-05-31&groupBy=day",
-              "host": ["{{baseUrl}}"],
+              "raw": "{{base_url}}/api/reports/sales?from=2026-01-01&to=2026-12-31&groupBy=month",
+              "host": ["{{base_url}}"],
               "path": ["api", "reports", "sales"],
               "query": [
-                { "key": "from",    "value": "2025-05-01" },
-                { "key": "to",      "value": "2025-05-31" },
-                { "key": "groupBy", "value": "day", "description": "day | week | month" }
+                { "key": "from",    "value": "2026-01-01" },
+                { "key": "to",      "value": "2026-12-31" },
+                { "key": "groupBy", "value": "month", "description": "day | week | month" }
               ]
             }
           },
@@ -428,12 +795,13 @@
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "GET",
+            "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/reports/top-products?limit=10",
-              "host": ["{{baseUrl}}"],
+              "raw": "{{base_url}}/api/reports/top-products?limit=10",
+              "host": ["{{base_url}}"],
               "path": ["api", "reports", "top-products"],
               "query": [
-                { "key": "limit", "value": "10", "description": "How many top products to return" }
+                { "key": "limit", "value": "10" }
               ]
             }
           },
@@ -444,22 +812,30 @@
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "GET",
-            "url": "{{baseUrl}}/api/reports/category-breakdown"
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/reports/category-breakdown",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reports", "category-breakdown"]
+            }
           },
           "response": []
         },
         {
-          "name": "Audit Logs (Admin only)",
+          "name": "Audit Logs  (admin only)",
           "request": {
             "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "GET",
+            "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/reports/audit?page=1&limit=50",
-              "host": ["{{baseUrl}}"],
+              "raw": "{{base_url}}/api/reports/audit?page=1&limit=20",
+              "host": ["{{base_url}}"],
               "path": ["api", "reports", "audit"],
               "query": [
-                { "key": "page",  "value": "1" },
-                { "key": "limit", "value": "50" }
+                { "key": "page",   "value": "1" },
+                { "key": "limit",  "value": "20" },
+                { "key": "action", "value": "", "disabled": true, "description": "CREATE | UPDATE | DELETE" },
+                { "key": "entity", "value": "", "disabled": true, "description": "Product | Order | Expense | Income | Supplier | StockMovement" }
               ]
             }
           },
@@ -469,14 +845,65 @@
     },
 
     {
-      "name": "❤️ Health",
+      "name": "🔔 Notifications",
       "item": [
         {
-          "name": "Health Check",
+          "name": "List Notifications",
           "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
             "method": "GET",
-            "url": "{{baseUrl}}/health",
-            "description": "No auth required. Returns 200 OK if server is running."
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/notifications?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications"],
+              "query": [
+                { "key": "page",  "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unread Count",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/notifications/unread",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications", "unread"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mark One as Read",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/notifications/{{notification_id}}/read",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications", "{{notification_id}}", "read"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mark All as Read",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/notifications/read-all",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications", "read-all"]
+            }
           },
           "response": []
         }
