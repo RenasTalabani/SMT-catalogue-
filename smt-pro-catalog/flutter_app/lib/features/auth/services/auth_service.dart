@@ -17,7 +17,7 @@ class AuthService {
     final user  = UserModel.fromJson(data['user']);
     final token = data['token'] as String;
 
-    await TokenStorage.save(token: token, role: user.role, name: user.name);
+    await TokenStorage.save(token: token, role: user.role, name: user.name, userId: user.id.toString());
     return user;
   }
 
