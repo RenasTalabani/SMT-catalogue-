@@ -18,13 +18,13 @@ export default function Header({ title }: { title: string }) {
   });
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-6 dark:border-gray-800 dark:bg-gray-900">
-      <h1 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h1>
-      <div className="flex items-center gap-4">
-        <button className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-800 dark:hover:text-white">
-          <Bell size={20} />
+    <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-dark-border bg-dark-surface px-6">
+      <h1 className="text-lg font-semibold text-white">{title}</h1>
+      <div className="flex items-center gap-3">
+        <button className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-dark-card text-[#94A3B8] hover:bg-dark-border hover:text-white transition-colors">
+          <Bell size={18} />
           {(data?.unreadCount ?? 0) > 0 && (
-            <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white font-bold">
+            <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-danger text-[9px] text-white font-bold">
               {data!.unreadCount > 9 ? '9+' : data!.unreadCount}
             </span>
           )}

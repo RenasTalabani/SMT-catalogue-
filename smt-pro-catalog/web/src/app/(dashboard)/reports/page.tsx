@@ -10,6 +10,10 @@ import {
 interface SalesDay  { date: string; revenue: number; orders: number }
 interface SalesResp { data: SalesDay[]; totalRevenue: number; totalOrders: number }
 
+const chartGridColor  = '#2D3748';
+const chartAxisColor  = '#94A3B8';
+const tooltipStyle    = { backgroundColor: '#16213E', border: '1px solid #2D3748', borderRadius: '12px', color: '#F1F5F9' };
+
 export default function ReportsPage() {
   const { data: resp, isLoading } = useQuery<SalesResp>({
     queryKey: ['reports', 'sales'],
@@ -21,37 +25,53 @@ export default function ReportsPage() {
     <div className="flex flex-col">
       <Header title="Reports" />
       <div className="p-6 space-y-6">
-        {/* Sales Chart */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-          <h2 className="mb-4 font-semibold text-gray-900 dark:text-white">Monthly Sales Revenue</h2>
+        {/* Summary */}
+        <div className="grid grid-cols-2 gap-4">
+          {[
+            { label: 'Total Revenue', value: `$${(resp?.totalRevenue ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`, color: 'text-primary' },
+            { label: 'Total Orders',  value: (resp?.totalOrders ?? 0).toLocaleString(), color: 'text-secondary' },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="card p-5">
+              <p className="text-xs font-medium text-[#94A3B8] uppercase tracking-wide mb-3">{label}</p>
+              <p className={`text-3xl font-bold ${color}`}>{isLoading ? '—' : value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Revenue Chart */}
+        <div className="card p-6">
+          <h2 className="mb-5 font-semibold text-white">Monthly Sales Revenue</h2>
           {isLoading ? (
-            <div className="flex h-64 items-center justify-center text-gray-400 text-sm">Loading chart…</div>
+            <div className="flex h-60 items-center justify-center text-[#94A3B8] text-sm">Loading chart…</div>
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={240}>
               <BarChart data={sales}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(v: number) => [`$${v.toLocaleString()}`, 'Revenue']} />
-                <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+                <XAxis dataKey="date" tick={{ fontSize: 11, fill: chartAxisColor }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: chartAxisColor }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={tooltipStyle}
+                  formatter={(v: number) => [`$${v.toLocaleString()}`, 'Revenue']}
+                />
+                <Bar dataKey="revenue" fill="#6C63FF" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
         </div>
 
         {/* Orders Chart */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-          <h2 className="mb-4 font-semibold text-gray-900 dark:text-white">Order Volume</h2>
+        <div className="card p-6">
+          <h2 className="mb-5 font-semibold text-white">Order Volume</h2>
           {isLoading ? (
-            <div className="flex h-64 items-center justify-center text-gray-400 text-sm">Loading chart…</div>
+            <div className="flex h-60 items-center justify-center text-[#94A3B8] text-sm">Loading chart…</div>
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={240}>
               <LineChart data={sales}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Line type="monotone" dataKey="orders" stroke="#10b981" strokeWidth={2} dot={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+                <XAxis dataKey="date" tick={{ fontSize: 11, fill: chartAxisColor }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: chartAxisColor }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Line type="monotone" dataKey="orders" stroke="#00C9A7" strokeWidth={2.5} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           )}

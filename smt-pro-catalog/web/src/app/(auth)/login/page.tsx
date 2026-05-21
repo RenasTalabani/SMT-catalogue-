@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/auth.store';
+import { Package } from 'lucide-react';
 
 const schema = z.object({
   email:    z.string().email('Invalid email'),
@@ -29,47 +30,60 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
+    <div className="gradient-login min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-600 text-white font-bold text-xl">
-            D
+
+        {/* Header — matches Flutter login header */}
+        <div className="mb-9 flex flex-col items-center text-center">
+          <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-3xl border border-white/20 bg-white/10 backdrop-blur-sm">
+            <Package className="h-11 w-11 text-white" strokeWidth={1.5} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">DaralIraq</h1>
-          <p className="mt-1 text-sm text-gray-500">Sign in to your admin account</p>
+          <h1 className="text-3xl font-bold tracking-tight text-white">DaralIraq</h1>
+          <p className="mt-1.5 text-sm text-white/60">Enterprise Inventory &amp; Sales Platform</p>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
-            <input
-              {...register('email')}
-              type="email"
-              autoComplete="email"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-            />
-            {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
-          </div>
+        {/* Card — white card on gradient, like Flutter */}
+        <div className="rounded-3xl bg-white p-8 shadow-modal">
+          <h2 className="mb-6 text-center text-lg font-semibold text-dark-bg">Sign in to your account</h2>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
-            <input
-              {...register('password')}
-              type="password"
-              autoComplete="current-password"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
-            />
-            {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>}
-          </div>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">Email</label>
+              <input
+                {...register('email')}
+                type="email"
+                autoComplete="email"
+                placeholder="admin@daraliraq.com"
+                className="input bg-light-bg border-light-border focus:ring-primary/40"
+              />
+              {errors.email && <p className="mt-1 text-xs text-danger">{errors.email.message}</p>}
+            </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-60"
-          >
-            {isLoading ? 'Signing in…' : 'Sign in'}
-          </button>
-        </form>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">Password</label>
+              <input
+                {...register('password')}
+                type="password"
+                autoComplete="current-password"
+                placeholder="••••••••"
+                className="input bg-light-bg border-light-border focus:ring-primary/40"
+              />
+              {errors.password && <p className="mt-1 text-xs text-danger">{errors.password.message}</p>}
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="btn-primary w-full mt-2 py-3 text-base"
+            >
+              {isLoading ? 'Signing in…' : 'Sign In'}
+            </button>
+          </form>
+        </div>
+
+        <p className="mt-6 text-center text-xs text-white/40">
+          DaralIraq v3.0 · Enterprise Edition
+        </p>
       </div>
     </div>
   );

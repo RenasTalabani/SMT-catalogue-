@@ -15,10 +15,10 @@ interface Order {
   user:          { name: string };
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  PENDING:   'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
-  COMPLETED: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
-  CANCELLED: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
+const STATUS_STYLE: Record<string, string> = {
+  PENDING:   'bg-warning/15 text-warning',
+  COMPLETED: 'bg-success/15 text-success',
+  CANCELLED: 'bg-danger/15 text-danger',
 };
 
 export default function OrdersPage() {
@@ -37,36 +37,40 @@ export default function OrdersPage() {
     <div className="flex flex-col">
       <Header title="Orders" />
       <div className="p-6">
-        <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 overflow-hidden">
+        <div className="card overflow-hidden">
+          <div className="border-b border-dark-border px-6 py-4 flex items-center justify-between">
+            <h2 className="font-semibold text-white">All Orders</h2>
+            <span className="text-xs text-[#94A3B8]">{orders.length} orders</span>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">#</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Customer</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Payment</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Total</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wide text-gray-500">Status</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Date</th>
+                <tr className="border-b border-dark-border bg-dark-surface">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-[#94A3B8]">#</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-[#94A3B8]">Customer</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-[#94A3B8]">Payment</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-[#94A3B8]">Total</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wide text-[#94A3B8]">Status</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-[#94A3B8]">Date</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+              <tbody className="divide-y divide-dark-border">
                 {isLoading ? (
-                  <tr><td colSpan={6} className="py-8 text-center text-gray-400">Loading…</td></tr>
+                  <tr><td colSpan={6} className="py-10 text-center text-[#94A3B8]">Loading…</td></tr>
                 ) : orders.length === 0 ? (
-                  <tr><td colSpan={6} className="py-8 text-center text-gray-400">No orders yet</td></tr>
+                  <tr><td colSpan={6} className="py-10 text-center text-[#94A3B8]">No orders yet</td></tr>
                 ) : orders.map((o) => (
-                  <tr key={o.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30">
-                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">#{o.id}</td>
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{o.user?.name ?? '—'}</td>
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{o.paymentMethod}</td>
-                    <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">${o.finalAmount.toFixed(2)}</td>
+                  <tr key={o.id} className="hover:bg-dark-card transition-colors">
+                    <td className="px-4 py-3 font-semibold text-primary">#{o.id}</td>
+                    <td className="px-4 py-3 text-white">{o.user?.name ?? '—'}</td>
+                    <td className="px-4 py-3 text-[#94A3B8]">{o.paymentMethod}</td>
+                    <td className="px-4 py-3 text-right font-bold text-white">${o.finalAmount.toFixed(2)}</td>
                     <td className="px-4 py-3 text-center">
-                      <span className={clsx('rounded-full px-2 py-0.5 text-xs font-medium', STATUS_COLOR[o.status] ?? 'bg-gray-100 text-gray-600')}>
+                      <span className={clsx('rounded-full px-2.5 py-0.5 text-xs font-medium', STATUS_STYLE[o.status] ?? 'bg-dark-card text-[#94A3B8]')}>
                         {o.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right text-gray-500">{new Date(o.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-right text-[#94A3B8]">{new Date(o.createdAt).toLocaleDateString()}</td>
                   </tr>
                 ))}
               </tbody>

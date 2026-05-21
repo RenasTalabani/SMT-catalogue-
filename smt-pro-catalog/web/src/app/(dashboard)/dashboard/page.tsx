@@ -1,4 +1,5 @@
 'use client';
+import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetcher } from '@/lib/api';
 import { useSocket } from '@/hooks/useSocket';
@@ -15,24 +16,27 @@ interface DashboardStats {
   recentOrders:  Array<{ id: number; finalAmount: number; status: string; createdAt: string }>;
 }
 
-const statCards = [
-  { key: 'totalProducts', label: 'Total Products',    icon: Package,       color: 'blue'   },
-  { key: 'totalOrders',   label: 'Total Orders',      icon: ShoppingCart,  color: 'green'  },
-  { key: 'totalRevenue',  label: 'Revenue (month)',   icon: TrendingUp,    color: 'purple' },
-  { key: 'lowStockCount', label: 'Low Stock Alerts',  icon: AlertTriangle, color: 'red'    },
-] as const;
+interface StatCard {
+  key:        keyof Pick<DashboardStats, 'totalProducts' | 'totalOrders' | 'totalRevenue' | 'lowStockCount'>;
+  label:      string;
+  icon:       React.ElementType;
+  iconBg:     string;
+  glow:       string;
+  valueColor: string;
+  isCurrency: boolean;
+}
 
-const colorMap = {
-  blue:   'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
-  green:  'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400',
-  purple: 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400',
-  red:    'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400',
-};
+const statCards: StatCard[] = [
+  { key: 'totalProducts', label: 'Total Products',   icon: Package,       iconBg: 'gradient-brand', glow: 'glow-primary', valueColor: 'text-primary',   isCurrency: false },
+  { key: 'totalOrders',   label: 'Total Orders',     icon: ShoppingCart,  iconBg: 'gradient-teal',  glow: '',             valueColor: 'text-secondary', isCurrency: false },
+  { key: 'totalRevenue',  label: 'Revenue (month)',  icon: TrendingUp,    iconBg: 'gradient-brand', glow: '',             valueColor: 'text-primary',   isCurrency: true  },
+  { key: 'lowStockCount', label: 'Low Stock Alerts', icon: AlertTriangle, iconBg: 'bg-warning/20',  glow: '',             valueColor: 'text-warning',   isCurrency: false },
+];
 
-const statusColors: Record<string, string> = {
-  PENDING:   'bg-yellow-100 text-yellow-800',
-  COMPLETED: 'bg-green-100 text-green-800',
-  CANCELLED: 'bg-red-100 text-red-800',
+const STATUS_STYLE: Record<string, string> = {
+  PENDING:   'bg-warning/15 text-warning',
+  COMPLETED: 'bg-success/15 text-success',
+  CANCELLED: 'bg-danger/15 text-danger',
 };
 
 export default function DashboardPage() {
@@ -42,32 +46,31 @@ export default function DashboardPage() {
     queryFn:  () => fetcher('/reports/dashboard'),
   });
 
-  useSocket(SocketEvent.orderCreated, () => {
-    void qc.invalidateQueries({ queryKey: ['dashboard'] });
-  });
-  useSocket(SocketEvent.stockLow, () => {
-    void qc.invalidateQueries({ queryKey: ['dashboard'] });
-  });
+  useSocket(SocketEvent.orderCreated, () => void qc.invalidateQueries({ queryKey: ['dashboard'] }));
+  useSocket(SocketEvent.stockLow,     () => void qc.invalidateQueries({ queryKey: ['dashboard'] }));
 
   return (
     <div className="flex flex-col">
       <Header title="Dashboard" />
+
       <div className="p-6 space-y-6">
         {/* KPI Cards */}
         <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-          {statCards.map(({ key, label, icon: Icon, color }) => (
-            <div key={key} className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+          {statCards.map(({ key, label, icon: Icon, iconBg, glow, valueColor, isCurrency }) => (
+            <div key={key} className="card p-5 flex flex-col gap-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-                <div className={clsx('rounded-lg p-2', colorMap[color])}>
-                  <Icon size={16} />
+                <p className="text-xs font-medium text-[#94A3B8] uppercase tracking-wide">{label}</p>
+                <div className={clsx('flex h-10 w-10 items-center justify-center rounded-xl', iconBg, glow)}>
+                  <Icon size={18} className="text-white" />
                 </div>
               </div>
-              <p className="mt-3 text-2xl font-bold text-gray-900 dark:text-white">
-                {isLoading ? '—' : (
-                  key === 'totalRevenue'
-                    ? `$${(data?.[key] ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-                    : (data?.[key] ?? 0).toLocaleString()
+              <p className={clsx('text-3xl font-bold', valueColor)}>
+                {isLoading ? (
+                  <span className="text-[#94A3B8]">—</span>
+                ) : isCurrency ? (
+                  `$${(data?.[key] ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+                ) : (
+                  (data?.[key] ?? 0).toLocaleString()
                 )}
               </p>
             </div>
@@ -75,29 +78,28 @@ export default function DashboardPage() {
         </div>
 
         {/* Recent Orders */}
-        <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-          <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-800">
-            <h2 className="font-semibold text-gray-900 dark:text-white">Recent Orders</h2>
+        <div className="card overflow-hidden">
+          <div className="border-b border-dark-border px-6 py-4 flex items-center justify-between">
+            <h2 className="font-semibold text-white">Recent Orders</h2>
+            <span className="text-xs text-[#94A3B8]">Live</span>
           </div>
-          <div className="divide-y divide-gray-100 dark:divide-gray-800">
+          <div className="divide-y divide-dark-border">
             {isLoading ? (
-              <div className="p-6 text-center text-sm text-gray-400">Loading...</div>
+              <div className="py-10 text-center text-sm text-[#94A3B8]">Loading…</div>
             ) : (data?.recentOrders ?? []).length === 0 ? (
-              <div className="p-6 text-center text-sm text-gray-400">No orders yet</div>
+              <div className="py-10 text-center text-sm text-[#94A3B8]">No orders yet</div>
             ) : (
               data!.recentOrders.map((order) => (
-                <div key={order.id} className="flex items-center justify-between px-6 py-3">
+                <div key={order.id} className="flex items-center justify-between px-6 py-3.5 hover:bg-dark-card transition-colors">
                   <div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">Order #{order.id}</p>
-                    <p className="text-xs text-gray-500">{new Date(order.createdAt).toLocaleDateString()}</p>
+                    <p className="text-sm font-medium text-white">Order #{order.id}</p>
+                    <p className="text-xs text-[#94A3B8]">{new Date(order.createdAt).toLocaleDateString()}</p>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className={clsx('rounded-full px-2 py-0.5 text-xs font-medium', statusColors[order.status] ?? 'bg-gray-100 text-gray-800')}>
+                    <span className={clsx('rounded-full px-2.5 py-0.5 text-xs font-medium', STATUS_STYLE[order.status] ?? 'bg-dark-card text-[#94A3B8]')}>
                       {order.status}
                     </span>
-                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                      ${order.finalAmount.toFixed(2)}
-                    </span>
+                    <span className="text-sm font-bold text-white">${order.finalAmount.toFixed(2)}</span>
                   </div>
                 </div>
               ))

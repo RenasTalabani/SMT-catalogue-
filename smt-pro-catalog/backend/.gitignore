@@ -3,3 +3,5 @@ node_modules/
 dist/
 build/
 *.log
+public/uploads/products/*
+!public/uploads/products/.gitkeep

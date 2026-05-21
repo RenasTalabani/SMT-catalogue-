@@ -4,20 +4,62 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --bg:      #F8F9FC;
+    --surface: #FFFFFF;
+    --border:  #E5E7EB;
+    --text:    #1A1A2E;
+    --muted:   #6B7280;
   }
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --bg:      #0F0F1A;
+    --surface: #1A1A2E;
+    --border:  #2D3748;
+    --text:    #F1F5F9;
+    --muted:   #94A3B8;
   }
-  body {
-    @apply bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-50;
+  html { @apply antialiased; }
+  body { @apply bg-dark-bg text-white; }
+  * { @apply border-light-border dark:border-dark-border; }
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl bg-light-surface dark:bg-dark-card border border-light-border dark:border-dark-border;
+  }
+  .btn-primary {
+    @apply rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white
+           hover:bg-primary-dark active:scale-95 transition-all duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-ghost {
+    @apply rounded-xl border border-light-border dark:border-dark-border px-4 py-2
+           text-sm font-medium text-[var(--muted)] hover:bg-light-divider dark:hover:bg-dark-divider
+           transition-colors;
+  }
+  .input {
+    @apply w-full rounded-xl border border-light-border dark:border-dark-border
+           bg-light-bg dark:bg-dark-surface px-4 py-2.5 text-sm text-[var(--text)]
+           placeholder-[var(--muted)]
+           focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary
+           transition-all;
+  }
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .stat-card {
+    @apply card p-5 flex flex-col gap-3;
+  }
+  .page-header {
+    @apply sticky top-0 z-10 flex h-16 items-center justify-between border-b
+           border-light-border dark:border-dark-border bg-light-surface dark:bg-dark-surface px-6;
   }
 }
 
 @layer utilities {
-  .scrollbar-thin {
-    scrollbar-width: thin;
-  }
+  .scrollbar-thin  { scrollbar-width: thin; }
+  .gradient-brand  { background: linear-gradient(135deg, #6C63FF, #4A42D4); }
+  .gradient-teal   { background: linear-gradient(135deg, #00C9A7, #00917A); }
+  .gradient-login  { background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 55%, #1D4ED8 100%); }
+  .text-primary    { color: #6C63FF; }
+  .glow-primary    { box-shadow: 0 0 20px rgba(108,99,255,0.35); }
 }
