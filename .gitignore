@@ -42,5 +42,12 @@ Thumbs.db
 # PM2
 .pm2/
 
+# Local dev scripts (Windows-only, not for deployment)
+ecosystem.config.js
+smt_web_server.js
+start_smt_servers.ps1
+FIX_FIREWALL_RUN_AS_ADMIN.bat
+start-backend.ps1
+
 # Uploads
 smt-pro-catalog/backend/uploads/
