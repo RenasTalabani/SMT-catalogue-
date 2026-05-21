@@ -19,7 +19,7 @@ class ApiEndpoints {
 
       case _Mode.production:
         // Your deployed backend URL on Railway / Render / VPS
-        return 'https://smt-catalogue-api.up.railway.app'; // ← REPLACE with real URL
+        return 'https://api.daraliraq.com'; // ← set after domain is live
     }
   }
 
