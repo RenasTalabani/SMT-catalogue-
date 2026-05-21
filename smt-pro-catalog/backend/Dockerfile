@@ -3,6 +3,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# OpenSSL required by Prisma migration engine on Alpine
+RUN apk add --no-cache openssl
+
 COPY package*.json ./
 COPY prisma ./prisma/
 COPY tsconfig.json ./
@@ -18,6 +21,9 @@ FROM node:20-alpine AS production
 WORKDIR /app
 
 ENV NODE_ENV=production
+
+# OpenSSL required by Prisma at runtime
+RUN apk add --no-cache openssl
 
 RUN addgroup -g 1001 -S nodejs && adduser -S nodeuser -u 1001
 
@@ -35,6 +41,7 @@ USER nodeuser
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
