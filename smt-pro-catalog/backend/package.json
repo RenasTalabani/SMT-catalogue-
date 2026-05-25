@@ -1,7 +1,7 @@
 {
   "name": "daraliraq-backend",
   "version": "3.0.0",
-  "description": "DaralIraq â€” Enterprise REST API (TypeScript Edition)",
+  "description": "DaralIraq — Enterprise REST API (TypeScript Edition)",
   "main": "dist/server.js",
   "scripts": {
     "start": "node dist/server.js",
@@ -34,6 +34,7 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
+    "prisma": "^5.22.0",
     "sharp": "^0.33.2",
     "socket.io": "^4.7.4",
     "winston": "^3.11.0"
@@ -52,7 +53,6 @@
     "@typescript-eslint/parser": "^6.21.0",
     "eslint": "^8.54.0",
     "nodemon": "^3.0.2",
-    "prisma": "^5.10.2",
     "tsx": "^4.22.0",
     "typescript": "^5.9.3"
   },
