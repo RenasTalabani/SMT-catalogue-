@@ -1,7 +1,7 @@
 {
   "name": "daraliraq-backend",
   "version": "3.0.0",
-  "description": "DaralIraq — Enterprise REST API (TypeScript Edition)",
+  "description": "DaralIraq â€” Enterprise REST API (TypeScript Edition)",
   "main": "dist/server.js",
   "scripts": {
     "start": "node dist/server.js",
@@ -20,7 +20,7 @@
     "@prisma/client": "^5.10.2",
     "@sentry/node": "^8.0.0",
     "@socket.io/redis-adapter": "^8.2.1",
-    "@supabase/supabase-js": "^2.45.0",
+    "@supabase/supabase-js": "^2.106.2",
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
