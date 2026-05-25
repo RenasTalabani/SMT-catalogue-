@@ -1,8 +1,9 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { randomUUID } from 'crypto';
 import multer from 'multer';
 import { UploadResult } from '../types';
 
-const SUPABASE_URL        = process.env['SUPABASE_URL'];
+const SUPABASE_URL         = process.env['SUPABASE_URL'];
 const SUPABASE_SERVICE_KEY = process.env['SUPABASE_SERVICE_KEY'];
 const BUCKET = 'products';
 
@@ -33,7 +34,7 @@ export const uploadToCloudinary = async (
   if (!supabase) throw new Error('Supabase storage is not configured');
 
   const ext      = mimetype.split('/')[1] ?? 'jpg';
-  const fileName = `${folder}/${crypto.randomUUID()}.${ext}`;
+  const fileName = `${folder}/${randomUUID()}.${ext}`;
 
   const { error } = await supabase.storage
     .from(BUCKET)
