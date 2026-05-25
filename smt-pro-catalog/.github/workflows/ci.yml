@@ -17,14 +17,14 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: backend
+        working-directory: smt-pro-catalog/backend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: backend/package-lock.json
+          cache-dependency-path: smt-pro-catalog/backend/package-lock.json
       - run: npm ci
       - run: npm run lint
 
@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: flutter_app
+        working-directory: smt-pro-catalog/flutter_app
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -54,7 +54,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     defaults:
       run:
-        working-directory: flutter_app
+        working-directory: smt-pro-catalog/flutter_app
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -87,4 +87,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build backend image
-        run: docker build ./backend -t daraliraq-backend:ci
+        run: docker build ./smt-pro-catalog/backend -t daraliraq-backend:ci
