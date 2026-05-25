@@ -1,68 +1,49 @@
-import fs   from 'fs';
-import path from 'path';
-import crypto from 'crypto';
+import { v2 as cloudinary } from 'cloudinary';
 import multer from 'multer';
 import { UploadResult } from '../types';
 
-const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads', 'products');
-if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+const CLOUD_NAME = process.env['CLOUDINARY_CLOUD_NAME'];
+const API_KEY    = process.env['CLOUDINARY_API_KEY'];
+const API_SECRET = process.env['CLOUDINARY_API_SECRET'];
 
-const ALLOWED_MIMETYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-const MAX_SIZE_BYTES    = 5 * 1024 * 1024;
+if (CLOUD_NAME && API_KEY && API_SECRET) {
+  cloudinary.config({ cloud_name: CLOUD_NAME, api_key: API_KEY, api_secret: API_SECRET });
+}
+
+export const isCloudinaryConfigured = (): boolean =>
+  Boolean(CLOUD_NAME && API_KEY && API_SECRET);
 
 export const upload = multer({
   storage: multer.memoryStorage(),
-  limits:  { fileSize: MAX_SIZE_BYTES },
+  limits:  { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (!ALLOWED_MIMETYPES.includes(file.mimetype)) {
+    if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.mimetype)) {
       return cb(new Error('Only JPEG, PNG, and WebP images are allowed'));
     }
     cb(null, true);
   },
 });
 
-// ─── Local storage (works everywhere, no account needed) ──────────────────────
-
-const getBaseUrl = (): string => {
-  const port = process.env['PORT'] ?? '3000';
-  const host = process.env['PUBLIC_URL'] ?? `http://192.168.1.73:${port}`;
-  return host;
-};
-
-const extFromMime: Record<string, string> = {
-  'image/jpeg': '.jpg',
-  'image/jpg':  '.jpg',
-  'image/png':  '.png',
-  'image/webp': '.webp',
-};
-
 export const uploadToCloudinary = (
   buffer: Buffer,
-  _folder = 'products',
+  folder  = 'products',
   mimetype = 'image/jpeg',
-): Promise<UploadResult> => {
-  return new Promise((resolve, reject) => {
-    try {
-      const ext      = extFromMime[mimetype] ?? '.jpg';
-      const filename = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`;
-      const filepath = path.join(UPLOADS_DIR, filename);
-      fs.writeFileSync(filepath, buffer);
-      const url = `${getBaseUrl()}/uploads/products/${filename}`;
-      resolve({ url, publicId: filename });
-    } catch (err) {
-      reject(err);
-    }
+): Promise<UploadResult> =>
+  new Promise((resolve, reject) => {
+    const resourceType = mimetype.startsWith('video/') ? 'video' : 'image';
+    cloudinary.uploader
+      .upload_stream({ folder, resource_type: resourceType }, (err, result) => {
+        if (err || !result) return reject(err ?? new Error('Cloudinary upload failed'));
+        resolve({ url: result.secure_url, publicId: result.public_id });
+      })
+      .end(buffer);
   });
-};
 
 export const deleteFromCloudinary = async (publicId: string | null | undefined): Promise<void> => {
-  if (!publicId) return;
+  if (!publicId || !isCloudinaryConfigured()) return;
   try {
-    const filepath = path.join(UPLOADS_DIR, publicId);
-    if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
+    await cloudinary.uploader.destroy(publicId);
   } catch {
-    // ignore delete errors
+    // ignore delete errors — don't crash if image already gone
   }
 };
-
-export const isCloudinaryConfigured = (): boolean => true;
