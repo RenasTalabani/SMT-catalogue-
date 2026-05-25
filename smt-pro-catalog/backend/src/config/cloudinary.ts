@@ -1,17 +1,18 @@
-import { v2 as cloudinary } from 'cloudinary';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import multer from 'multer';
 import { UploadResult } from '../types';
 
-const CLOUD_NAME = process.env['CLOUDINARY_CLOUD_NAME'];
-const API_KEY    = process.env['CLOUDINARY_API_KEY'];
-const API_SECRET = process.env['CLOUDINARY_API_SECRET'];
+const SUPABASE_URL        = process.env['SUPABASE_URL'];
+const SUPABASE_SERVICE_KEY = process.env['SUPABASE_SERVICE_KEY'];
+const BUCKET = 'products';
 
-if (CLOUD_NAME && API_KEY && API_SECRET) {
-  cloudinary.config({ cloud_name: CLOUD_NAME, api_key: API_KEY, api_secret: API_SECRET });
+let supabase: SupabaseClient | null = null;
+if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
+  supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 }
 
 export const isCloudinaryConfigured = (): boolean =>
-  Boolean(CLOUD_NAME && API_KEY && API_SECRET);
+  Boolean(SUPABASE_URL && SUPABASE_SERVICE_KEY);
 
 export const upload = multer({
   storage: multer.memoryStorage(),
@@ -24,25 +25,30 @@ export const upload = multer({
   },
 });
 
-export const uploadToCloudinary = (
+export const uploadToCloudinary = async (
   buffer: Buffer,
-  folder  = 'products',
+  folder   = 'products',
   mimetype = 'image/jpeg',
-): Promise<UploadResult> =>
-  new Promise((resolve, reject) => {
-    const resourceType = mimetype.startsWith('video/') ? 'video' : 'image';
-    cloudinary.uploader
-      .upload_stream({ folder, resource_type: resourceType }, (err, result) => {
-        if (err || !result) return reject(err ?? new Error('Cloudinary upload failed'));
-        resolve({ url: result.secure_url, publicId: result.public_id });
-      })
-      .end(buffer);
-  });
+): Promise<UploadResult> => {
+  if (!supabase) throw new Error('Supabase storage is not configured');
+
+  const ext      = mimetype.split('/')[1] ?? 'jpg';
+  const fileName = `${folder}/${crypto.randomUUID()}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(fileName, buffer, { contentType: mimetype, upsert: false });
+
+  if (error) throw new Error(`Storage upload failed: ${error.message}`);
+
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(fileName);
+  return { url: data.publicUrl, publicId: fileName };
+};
 
 export const deleteFromCloudinary = async (publicId: string | null | undefined): Promise<void> => {
-  if (!publicId || !isCloudinaryConfigured()) return;
+  if (!publicId || !supabase) return;
   try {
-    await cloudinary.uploader.destroy(publicId);
+    await supabase.storage.from(BUCKET).remove([publicId]);
   } catch {
     // ignore delete errors — don't crash if image already gone
   }
