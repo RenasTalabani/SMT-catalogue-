@@ -28,7 +28,7 @@ export default function InventoryPage() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery<{ movements: Movement[] }>({
     queryKey: ['inventory'],
-    queryFn:  () => fetcher('/inventory?limit=50'),
+    queryFn:  () => fetcher('/inventory/movements?limit=50'),
   });
 
   useSocket(SocketEvent.stockUpdated, () => void qc.invalidateQueries({ queryKey: ['inventory'] }));

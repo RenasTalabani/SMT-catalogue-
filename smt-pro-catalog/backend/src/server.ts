@@ -9,11 +9,17 @@ import { initSocketHandlers } from './modules/realtime/realtime.service';
 
 // ─── Env validation (production) ─────────────────────────────────────────────
 if (process.env['NODE_ENV'] === 'production') {
-  const required = ['DATABASE_URL', 'JWT_SECRET', 'SUPABASE_URL', 'SUPABASE_SERVICE_KEY'];
+  const required = ['DATABASE_URL', 'JWT_SECRET'];
   const missing  = required.filter((k) => !process.env[k]);
   if (missing.length) {
     console.error(`[FATAL] Missing required environment variables: ${missing.join(', ')}`);
     process.exit(1);
+  }
+  // Warn about optional but strongly recommended vars (image uploads disabled without these)
+  const recommended = ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY', 'ALLOWED_ORIGINS'];
+  const missingRec  = recommended.filter((k) => !process.env[k]);
+  if (missingRec.length) {
+    console.warn(`[warn]  Missing recommended variables: ${missingRec.join(', ')} — some features disabled`);
   }
 }
 
