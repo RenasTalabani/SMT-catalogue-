@@ -30,14 +30,21 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow images served from /uploads
   contentSecurityPolicy: false,                           // REST API — no HTML pages to protect
 }));
+const allowedOrigins = (process.env['ALLOWED_ORIGINS'] ?? '')
+  .split(',').map((o) => o.trim()).filter(Boolean);
+
 app.use(cors({
-  origin: isProd
-    ? (process.env['ALLOWED_ORIGINS'] ?? '').split(',').map((o) => o.trim()).filter(Boolean)
-    : true,
+  // In production: use ALLOWED_ORIGINS list; fall back to permissive if unset (allows
+  // initial Railway deployment before the web URL is known, then tighten after).
+  origin: isProd && allowedOrigins.length > 0 ? allowedOrigins : true,
   methods:        ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials:    true,
 }));
+
+if (isProd && allowedOrigins.length === 0) {
+  logger.warn('[cors] ALLOWED_ORIGINS not set — all origins permitted. Set it to your web URL after first deploy.');
+}
 
 // ─── Performance ──────────────────────────────────────────────────────────────
 app.use(compression());

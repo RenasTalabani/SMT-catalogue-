@@ -54,11 +54,11 @@ export const recordMovement = async (employeeId: number, { productId, type, quan
 
 export const getInventoryValue = async () => {
   const products = await prisma.product.findMany({
-    select: { id: true, name: true, category: true, price: true, quantity: true },
+    select: { id: true, name: true, category: true, price: true, quantity: true, lowStockAlert: true },
   });
   const items      = products.map((p) => ({ ...p, totalValue: parseFloat((p.price * p.quantity).toFixed(2)) }));
   const totalValue = items.reduce((sum, p) => sum + p.totalValue, 0);
-  const lowStock   = items.filter((p) => p.quantity <= 5);
+  const lowStock   = items.filter((p) => p.quantity <= p.lowStockAlert);
   return { items, totalValue: parseFloat(totalValue.toFixed(2)), lowStock };
 };
 
