@@ -7,10 +7,8 @@ const nextConfig: NextConfig = {
       // Local dev / local network
       { protocol: 'http',  hostname: 'localhost',     port: '3000', pathname: '/uploads/**' },
       { protocol: 'http',  hostname: '192.168.1.73',  port: '3000', pathname: '/uploads/**' },
-      // Production — any HTTPS host (Railway, custom domain)
-      { protocol: 'https', hostname: '**',            pathname: '/uploads/**' },
-      // Cloudinary
-      { protocol: 'https', hostname: 'res.cloudinary.com' },
+      // Production — any HTTPS host (Railway, custom domain, Supabase Storage)
+      { protocol: 'https', hostname: '**' },
     ],
   },
   async rewrites() {
