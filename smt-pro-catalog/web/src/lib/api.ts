@@ -18,10 +18,15 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Normalise error messages
+// Normalise error messages + auto-logout on token expiry
 api.interceptors.response.use(
   (r) => r,
   (err: AxiosError<{ message?: string }>) => {
+    if (err.response?.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('daraliraq_token');
+      localStorage.removeItem('daraliraq_user');
+      window.location.href = '/login';
+    }
     const message = err.response?.data?.message ?? err.message ?? 'Request failed';
     return Promise.reject(new Error(message));
   },

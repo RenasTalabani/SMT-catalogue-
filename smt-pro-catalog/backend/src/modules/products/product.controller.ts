@@ -25,9 +25,22 @@ export const getById = async (req: Request, res: Response): Promise<void> => {
 
 export const create = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, description, price, quantity, category } = req.body as Record<string, unknown>;
+    const b = req.body as Record<string, unknown>;
     const product = await productService.create(
-      { name: String(name), description: description ? String(description) : undefined, price: Number(price), quantity: Number(quantity), category: String(category) },
+      {
+        name:          String(b['name']),
+        description:   b['description']   ? String(b['description'])          : undefined,
+        price:         Number(b['price']),
+        costPrice:     b['costPrice']      ? Number(b['costPrice'])            : undefined,
+        quantity:      Number(b['quantity'] ?? 0),
+        lowStockAlert: b['lowStockAlert']  ? Number(b['lowStockAlert'])        : undefined,
+        category:      String(b['category'] ?? ''),
+        categoryId:    b['categoryId']     ? Number(b['categoryId'])           : undefined,
+        sku:           b['sku']            ? String(b['sku'])                  : undefined,
+        barcode:       b['barcode']        ? String(b['barcode'])              : undefined,
+        unit:          b['unit']           ? String(b['unit'])                 : undefined,
+        isActive:      b['isActive'] !== undefined ? b['isActive'] === true || b['isActive'] === 'true' : undefined,
+      },
       req.file?.buffer,
       req.file?.mimetype,
     );
@@ -37,10 +50,18 @@ export const create = async (req: Request, res: Response): Promise<void> => {
 
 export const update = async (req: Request, res: Response): Promise<void> => {
   try {
-    const allowed = ['name', 'description', 'price', 'quantity', 'category'] as const;
+    const allowed = [
+      'name', 'description', 'price', 'costPrice', 'quantity',
+      'lowStockAlert', 'category', 'categoryId', 'sku', 'barcode', 'unit', 'isActive',
+    ] as const;
+    const b = req.body as Record<string, unknown>;
     const updates: Record<string, unknown> = {};
     for (const f of allowed) {
-      if ((req.body as Record<string, unknown>)[f] !== undefined) updates[f] = (req.body as Record<string, unknown>)[f];
+      if (b[f] !== undefined) {
+        if (f === 'isActive') updates[f] = b[f] === true || b[f] === 'true';
+        else if (['price', 'costPrice', 'quantity', 'lowStockAlert', 'categoryId'].includes(f)) updates[f] = Number(b[f]);
+        else updates[f] = b[f];
+      }
     }
     success(res, await productService.update(req.params['id']!, updates as Parameters<typeof productService.update>[1], req.file?.buffer));
   } catch (e) { resolve(e as Error, res); }

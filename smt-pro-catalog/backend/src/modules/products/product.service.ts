@@ -3,8 +3,13 @@ import { uploadToCloudinary, deleteFromCloudinary, isCloudinaryConfigured } from
 import { getIO } from '../../config/socket';
 
 const SELECT = {
-  id: true, name: true, description: true, price: true,
-  quantity: true, imageUrl: true, category: true, createdAt: true,
+  id: true, name: true, description: true,
+  price: true, costPrice: true,
+  quantity: true, lowStockAlert: true,
+  imageUrl: true, imagePublicId: true,
+  category: true, categoryId: true,
+  sku: true, barcode: true, unit: true,
+  isActive: true, createdAt: true, updatedAt: true,
 } as const;
 
 interface ProductFilters {
@@ -18,8 +23,15 @@ interface CreateProductInput {
   name: string;
   description?: string;
   price: number;
+  costPrice?: number;
   quantity: number;
+  lowStockAlert?: number;
   category: string;
+  categoryId?: number;
+  sku?: string;
+  barcode?: string;
+  unit?: string;
+  isActive?: boolean;
 }
 
 export const getAll = async ({ category, search, page = 1, limit = 20 }: ProductFilters = {}) => {

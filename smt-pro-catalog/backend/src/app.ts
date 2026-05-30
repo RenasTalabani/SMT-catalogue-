@@ -22,8 +22,14 @@ import notificationRoutes from './modules/notifications/notification.routes';
 const app = express();
 const isProd = process.env['NODE_ENV'] === 'production';
 
+// ─── Trust Railway / Render reverse proxy (needed for rate-limit real-IP) ────
+app.set('trust proxy', 1);
+
 // ─── Security ─────────────────────────────────────────────────────────────────
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow images served from /uploads
+  contentSecurityPolicy: false,                           // REST API — no HTML pages to protect
+}));
 app.use(cors({
   origin: isProd
     ? (process.env['ALLOWED_ORIGINS'] ?? '').split(',').map((o) => o.trim()).filter(Boolean)

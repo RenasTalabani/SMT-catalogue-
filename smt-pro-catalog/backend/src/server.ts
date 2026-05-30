@@ -7,6 +7,16 @@ import logger from './shared/utils/logger.util';
 import { init as initSocket } from './config/socket';
 import { initSocketHandlers } from './modules/realtime/realtime.service';
 
+// ─── Env validation (production) ─────────────────────────────────────────────
+if (process.env['NODE_ENV'] === 'production') {
+  const required = ['DATABASE_URL', 'JWT_SECRET', 'SUPABASE_URL', 'SUPABASE_SERVICE_KEY'];
+  const missing  = required.filter((k) => !process.env[k]);
+  if (missing.length) {
+    console.error(`[FATAL] Missing required environment variables: ${missing.join(', ')}`);
+    process.exit(1);
+  }
+}
+
 // ─── Sentry (must be before anything else) ────────────────────────────────────
 if (process.env['SENTRY_DSN']) {
   Sentry.init({

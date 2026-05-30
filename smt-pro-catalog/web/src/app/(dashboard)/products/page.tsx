@@ -420,6 +420,7 @@ export default function ProductsPage() {
       </div>
 
       <ProductModal
+        key={editProduct ? `edit-${editProduct.id}` : 'new'}
         open={showModal}
         onClose={closeModal}
         editProduct={editProduct}

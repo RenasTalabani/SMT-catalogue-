@@ -2,6 +2,7 @@ import { Server, Socket } from 'socket.io';
 import { Server as HttpServer } from 'http';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { getRedisClient } from './redis';
+import { verifyToken } from '../shared/utils/jwt.util';
 import logger from '../shared/utils/logger.util';
 
 let _io: Server | null = null;
@@ -35,8 +36,22 @@ export const init = async (httpServer: HttpServer): Promise<Server> => {
   }
 
   _io.on('connection', (socket: Socket) => {
-    const role = (socket.handshake.query['role'] as string) || 'guest';
-    const userId = socket.handshake.query['userId'] as string | undefined;
+    // Verify JWT if provided — fall back to guest role if missing/invalid
+    let role   = 'guest';
+    let userId: string | undefined;
+
+    const token = (socket.handshake.auth as Record<string, unknown>)?.['token'] as string | undefined
+      ?? socket.handshake.query['token'] as string | undefined;
+
+    if (token) {
+      try {
+        const payload = verifyToken(token);
+        role   = payload.role ?? 'guest';
+        userId = String(payload.id);
+      } catch {
+        logger.warn(`[socket] Invalid token — client ${socket.id} connected as guest`);
+      }
+    }
 
     void socket.join(role);
     void socket.join('all');
