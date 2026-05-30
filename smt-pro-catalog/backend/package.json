@@ -1,12 +1,13 @@
 {
   "name": "daraliraq-backend",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "DaralIraq — Enterprise REST API (TypeScript Edition)",
   "main": "dist/server.js",
   "scripts": {
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "build": "tsc --project tsconfig.json",
+    "postinstall": "prisma generate",
     "build:check": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
