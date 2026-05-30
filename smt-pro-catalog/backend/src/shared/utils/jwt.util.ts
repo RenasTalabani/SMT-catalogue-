@@ -1,22 +1,19 @@
 import jwt from 'jsonwebtoken';
 import { JwtPayload } from '../../types';
 
-const secret = process.env['JWT_SECRET'];
 const expiresIn = process.env['JWT_EXPIRES_IN'] ?? '7d';
 
-if (!secret) {
-  if (process.env['NODE_ENV'] === 'production') {
-    console.error('[FATAL] JWT_SECRET environment variable is not set. Refusing to start in production without it.');
-    process.exit(1);
-  } else {
-    console.warn('[security] JWT_SECRET not set — using insecure dev secret. Set it before deploying.');
-  }
-}
-
-const resolvedSecret = secret ?? 'dev-only-insecure-secret-do-not-use-in-production';
+// Secret is read at call-time so the module never calls process.exit().
+// The HTTP server starts unconditionally; if JWT_SECRET is missing the
+// sign/verify calls throw at runtime (login returns 500, server stays up).
+const getSecret = (): string => {
+  const s = process.env['JWT_SECRET'];
+  if (!s) throw new Error('JWT_SECRET environment variable is not set');
+  return s;
+};
 
 export const signToken = (payload: Omit<JwtPayload, 'iat' | 'exp'>): string =>
-  jwt.sign(payload, resolvedSecret, { expiresIn } as jwt.SignOptions);
+  jwt.sign(payload, getSecret(), { expiresIn } as jwt.SignOptions);
 
 export const verifyToken = (token: string): JwtPayload =>
-  jwt.verify(token, resolvedSecret) as JwtPayload;
+  jwt.verify(token, getSecret()) as JwtPayload;
