@@ -3,9 +3,6 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../constants/api_endpoints.dart';
 import '../storage/token_storage.dart';
 
-// userId is stored alongside role/token so the server can route personal events
-const _userIdKey = 'user_id';
-
 /// Events emitted by the backend Socket.IO server.
 class SocketEvent {
   static const productCreated  = 'product:created';
