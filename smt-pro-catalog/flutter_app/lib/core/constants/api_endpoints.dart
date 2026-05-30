@@ -5,7 +5,7 @@
 /// Mode.production    → Deployed cloud backend
 enum _Mode { localWifi, ngrok, production }
 
-const _mode = _Mode.localWifi; // ← CHANGE THIS
+const _mode = _Mode.production; // ← production build
 
 class ApiEndpoints {
   static String get baseUrl {
