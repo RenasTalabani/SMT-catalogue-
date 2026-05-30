@@ -1,7 +1,19 @@
 node_modules/
-.env
 dist/
-build/
+.env
 *.log
+logs/
+
+# SQLite dev databases
+prisma/*.db
+prisma/**/*.db
+
+# Uploaded product images (stored in Supabase Storage)
 public/uploads/products/*
 !public/uploads/products/.gitkeep
+
+# Compiled JS outputs in src/ (tsc outputs to dist/, not src/)
+src/**/*.js
+src/**/*.js.map
+src/**/*.d.ts
+!src/types/**/*.d.ts

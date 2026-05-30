@@ -1,16 +1,27 @@
-# Node
+# ─── Backend ──────────────────────────────────────────────────────────────────
 backend/node_modules/
+backend/dist/
+backend/.env
+backend/logs/
 backend/npm-debug.log*
 backend/yarn-debug.log*
 backend/yarn-error.log*
-# backend/package-lock.json  # needed for Railway ci builds
-backend/.env
 
-# Logs
-backend/logs/
-*.log
+# SQLite dev databases (never commit these)
+backend/prisma/*.db
+backend/prisma/**/*.db
 
-# Flutter
+# Uploaded files (stored in Supabase, not git)
+backend/public/uploads/products/*
+!backend/public/uploads/products/.gitkeep
+
+# ─── Web ──────────────────────────────────────────────────────────────────────
+web/node_modules/
+web/.next/
+web/.env
+web/.env.local
+
+# ─── Flutter ──────────────────────────────────────────────────────────────────
 flutter_app/.dart_tool/
 flutter_app/.packages
 flutter_app/build/
@@ -19,7 +30,9 @@ flutter_app/.flutter-plugins-dependencies
 flutter_app/.metadata
 flutter_app/pubspec.lock
 
-# IDE
+# ─── General ──────────────────────────────────────────────────────────────────
+*.log
 .vscode/
 .idea/
 .DS_Store
+Thumbs.db
