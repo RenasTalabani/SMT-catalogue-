@@ -18,8 +18,7 @@ class ApiEndpoints {
         return 'https://early-foxes-pull.loca.lt';
 
       case _Mode.production:
-        // Your deployed backend URL on Railway / Render / VPS
-        return 'https://api.daraliraq.com'; // ← set after domain is live
+        return 'https://amusing-charisma-production-50fc.up.railway.app';
     }
   }
 
