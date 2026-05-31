@@ -1,9 +1,9 @@
 import axios, { AxiosRequestConfig, AxiosError } from 'axios';
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
-
+// Use relative /api path — Next.js rewrites proxy it to the backend.
+// This works in both browser and avoids CORS + build-time URL baking issues.
 export const api = axios.create({
-  baseURL:        `${BASE}/api`,
+  baseURL:        '/api',
   timeout:        30_000,
   headers:        { 'Content-Type': 'application/json' },
   withCredentials: false,
