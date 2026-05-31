@@ -12,13 +12,10 @@ const nextConfig: NextConfig = {
     ],
   },
   async rewrites() {
-    const backend = process.env.NEXT_PUBLIC_API_URL
-      ?? process.env.API_URL
-      ?? 'http://localhost:3000';
     return [
       {
         source:      '/api/:path*',
-        destination: `${backend}/api/:path*`,
+        destination: 'https://amusing-charisma-production-50fc.up.railway.app/api/:path*',
       },
     ];
   },
