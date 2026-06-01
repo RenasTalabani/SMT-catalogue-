@@ -42,7 +42,8 @@ export default function CartPanel() {
         toast.success(`Order #${order.id} — Invoice ${inv.invoiceNumber} created!`);
         clear();
         setCustomerName(''); setCustomerPhone(''); setNotes('');
-        window.open(`/api/invoices/${inv.id}/preview`, '_blank');
+        const token = localStorage.getItem('daraliraq_token') ?? '';
+        window.open(`/api/invoices/${inv.id}/preview?token=${token}`, '_blank');
       } catch {
         // Invoice creation failed (e.g. table not yet migrated) — order still saved
         toast.success(`Order #${order.id} saved! (Invoice table not ready yet — run SQL migration in Supabase)`);

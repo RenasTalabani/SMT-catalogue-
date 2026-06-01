@@ -44,13 +44,15 @@ export default function InvoicesPage() {
   const invoices: Invoice[] = data?.invoices ?? [];
   const total: number       = data?.total    ?? 0;
 
-  const downloadPDF = (id: number, number: string) => {
+  const getToken = () => (typeof window !== 'undefined' ? localStorage.getItem('daraliraq_token') ?? '' : '');
+
+  const downloadPDF = (id: number, _number: string) => {
     toast.success('Downloading…');
-    window.open(`/api/invoices/${id}/pdf`, '_blank');
+    window.open(`/api/invoices/${id}/pdf?token=${getToken()}`, '_blank');
   };
 
   const previewPDF = (id: number) => {
-    window.open(`/api/invoices/${id}/preview`, '_blank');
+    window.open(`/api/invoices/${id}/preview?token=${getToken()}`, '_blank');
   };
 
   return (
@@ -119,6 +121,7 @@ export default function InvoicesPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 justify-end">
                       <button
+                        type="button"
                         onClick={() => previewPDF(inv.id)}
                         className="p-1.5 rounded-lg hover:bg-dark-card text-[#94A3B8] hover:text-primary transition-colors"
                         title="Preview PDF"
@@ -126,6 +129,7 @@ export default function InvoicesPage() {
                         <Eye size={15} />
                       </button>
                       <button
+                        type="button"
                         onClick={() => downloadPDF(inv.id, inv.invoiceNumber)}
                         className="p-1.5 rounded-lg hover:bg-dark-card text-[#94A3B8] hover:text-green-400 transition-colors"
                         title="Download PDF"
@@ -146,9 +150,9 @@ export default function InvoicesPage() {
         <div className="flex items-center justify-between">
           <p className="text-sm text-[#94A3B8]">Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, total)} of {total}</p>
           <div className="flex gap-2">
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
+            <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
               className="btn-secondary text-sm disabled:opacity-40">Previous</button>
-            <button onClick={() => setPage((p) => p + 1)} disabled={page * 20 >= total}
+            <button type="button" onClick={() => setPage((p) => p + 1)} disabled={page * 20 >= total}
               className="btn-secondary text-sm disabled:opacity-40">Next</button>
           </div>
         </div>
