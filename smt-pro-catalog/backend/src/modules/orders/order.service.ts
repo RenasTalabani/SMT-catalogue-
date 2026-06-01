@@ -4,18 +4,27 @@ import { invalidate } from '../../shared/utils/cache.util';
 import { JwtPayload } from '../../types';
 
 const ORDER_SELECT = {
-  id: true, totalAmount: true, status: true, createdAt: true,
+  id: true, totalAmount: true, finalAmount: true, discount: true,
+  tax: true, status: true, paymentMethod: true, notes: true,
+  receiptUrl: true, createdAt: true, updatedAt: true,
   user:  { select: { id: true, name: true, email: true } },
   items: {
     select: {
-      id: true, quantity: true, price: true,
+      id: true, quantity: true, price: true, discount: true,
       product: { select: { id: true, name: true, imageUrl: true } },
     },
   },
 } as const;
 
 interface PaginationInput { page?: string | number; limit?: string | number; }
-interface OrderItemInput  { productId: number; quantity: number; }
+interface OrderItemInput  { productId: number; quantity: number; price?: number; }
+interface CreateOrderInput {
+  items:         OrderItemInput[];
+  paymentMethod?: string;
+  notes?:         string;
+  discount?:      number;
+  tax?:           number;
+}
 
 export const getAll = async ({ page = 1, limit = 20, status, userId }: PaginationInput & { status?: string; userId?: string } = {}) => {
   const where: Record<string, unknown> = {};
@@ -49,7 +58,9 @@ export const getById = async (id: string | number, requestingUser: JwtPayload) =
   return order;
 };
 
-export const create = async (userId: number, items: OrderItemInput[]) => {
+export const create = async (userId: number, input: CreateOrderInput) => {
+  const { items, paymentMethod = 'CASH', notes, discount = 0, tax = 0 } = input;
+
   const productIds = items.map((i) => i.productId);
   const products   = await prisma.product.findMany({
     where: { id: { in: productIds } },
@@ -59,11 +70,12 @@ export const create = async (userId: number, items: OrderItemInput[]) => {
 
   for (const item of items) {
     const product = productMap[item.productId];
-    if (!product)                    throw new Error(`PRODUCT_NOT_FOUND:${item.productId}`);
+    if (!product)                         throw new Error(`PRODUCT_NOT_FOUND:${item.productId}`);
     if (product.quantity < item.quantity) throw new Error(`INSUFFICIENT_STOCK:${product.name}`);
   }
 
-  const totalAmount = items.reduce((sum, item) => sum + (productMap[item.productId]?.price ?? 0) * item.quantity, 0);
+  const totalAmount  = parseFloat(items.reduce((sum, item) => sum + (productMap[item.productId]?.price ?? 0) * item.quantity, 0).toFixed(2));
+  const finalAmount  = parseFloat((totalAmount - discount + tax).toFixed(2));
 
   const order = await prisma.$transaction(async (tx) => {
     for (const item of items) {
@@ -73,6 +85,11 @@ export const create = async (userId: number, items: OrderItemInput[]) => {
       data: {
         userId,
         totalAmount,
+        finalAmount,
+        discount,
+        tax,
+        paymentMethod,
+        notes: notes ?? null,
         items: {
           create: items.map((item) => ({
             productId: item.productId,
@@ -86,7 +103,7 @@ export const create = async (userId: number, items: OrderItemInput[]) => {
   });
 
   await invalidate('products:');
-  getIO()?.to('all').emit('order:created', { id: order.id, totalAmount, userId, itemCount: items.length });
+  getIO()?.to('all').emit('order:created', { id: order.id, totalAmount, finalAmount, userId, itemCount: items.length });
   return order;
 };
 

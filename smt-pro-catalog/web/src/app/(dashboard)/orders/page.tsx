@@ -11,9 +11,13 @@ import toast from 'react-hot-toast';
 
 interface Order {
   id:            number;
-  finalAmount:   number;
+  totalAmount:   number;
+  finalAmount:   number | null;
+  discount:      number;
+  tax:           number;
   status:        string;
   paymentMethod: string;
+  notes:         string | null;
   createdAt:     string;
   user:          { name: string };
 }
@@ -90,7 +94,7 @@ export default function OrdersPage() {
                     <td className="px-4 py-3 font-semibold text-primary">#{o.id}</td>
                     <td className="px-4 py-3 text-white">{o.user?.name ?? '—'}</td>
                     <td className="px-4 py-3 text-[#94A3B8]">{o.paymentMethod}</td>
-                    <td className="px-4 py-3 text-right font-bold text-white">${o.finalAmount.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-white">${(o.finalAmount ?? o.totalAmount ?? 0).toFixed(2)}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={clsx('rounded-full px-2.5 py-0.5 text-xs font-medium', STATUS_STYLE[o.status] ?? 'bg-dark-card text-[#94A3B8]')}>
                         {o.status}

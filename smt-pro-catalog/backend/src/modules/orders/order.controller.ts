@@ -36,7 +36,20 @@ export const getById = async (req: AuthRequest, res: Response): Promise<void> =>
 
 export const create = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const order = await orderService.create(req.user.id, (req.body as { items: Array<{ productId: number; quantity: number }> }).items);
+    const body = req.body as {
+      items:          Array<{ productId: number; quantity: number }>;
+      paymentMethod?: string;
+      notes?:         string;
+      discount?:      number;
+      tax?:           number;
+    };
+    const order = await orderService.create(req.user.id, {
+      items:         body.items,
+      paymentMethod: body.paymentMethod,
+      notes:         body.notes,
+      discount:      body.discount,
+      tax:           body.tax,
+    });
     success(res, order, 'Order created', 201);
   } catch (e) { resolve(e as Error, res); }
 };
