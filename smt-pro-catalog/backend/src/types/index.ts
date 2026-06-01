@@ -27,7 +27,7 @@ export interface UploadResult {
   publicId: string;
 }
 
-export type UserRole = 'admin' | 'employee' | 'customer';
+export type UserRole = 'super_admin' | 'admin' | 'employee' | 'customer';
 
 export interface CacheEntry<T> {
   data: T;

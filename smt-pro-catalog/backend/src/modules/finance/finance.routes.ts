@@ -7,7 +7,7 @@ import { validateExpense, validateIncome } from './finance.validation';
 
 const router = Router();
 
-router.use(protect as RequestHandler, restrictTo('admin', 'employee') as RequestHandler);
+router.use(protect as RequestHandler, restrictTo('super_admin', 'admin') as RequestHandler);
 
 router.get('/summary',     financeController.getSummary    as unknown as RequestHandler);
 router.get('/profit-loss', financeController.getProfitLoss as unknown as RequestHandler);
@@ -19,7 +19,7 @@ router.post('/expenses',
   financeController.createExpense as unknown as RequestHandler,
 );
 router.delete('/expenses/:id',
-  restrictTo('admin') as RequestHandler,
+  restrictTo('super_admin', 'admin') as RequestHandler,
   auditMiddleware('DELETE', 'Expense') as RequestHandler,
   financeController.deleteExpense as unknown as RequestHandler,
 );
@@ -31,7 +31,7 @@ router.post('/incomes',
   financeController.createIncome as unknown as RequestHandler,
 );
 router.delete('/incomes/:id',
-  restrictTo('admin') as RequestHandler,
+  restrictTo('super_admin', 'admin') as RequestHandler,
   auditMiddleware('DELETE', 'Income') as RequestHandler,
   financeController.deleteIncome as unknown as RequestHandler,
 );

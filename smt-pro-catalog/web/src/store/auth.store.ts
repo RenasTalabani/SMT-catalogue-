@@ -36,6 +36,9 @@ export const useAuthStore = create<AuthState>()(
             localStorage.setItem('daraliraq_token',   token);
             localStorage.setItem('daraliraq_role',    user.role);
             localStorage.setItem('daraliraq_user_id', String(user.id));
+            // Persist to cookies for Next.js edge middleware route guards
+            document.cookie = `daraliraq_token=${token}; path=/; SameSite=Lax`;
+            document.cookie = `daraliraq_role=${user.role}; path=/; SameSite=Lax`;
           }
           set({ user, token, isLoading: false });
         } catch (err) {
@@ -49,6 +52,9 @@ export const useAuthStore = create<AuthState>()(
           localStorage.removeItem('daraliraq_token');
           localStorage.removeItem('daraliraq_role');
           localStorage.removeItem('daraliraq_user_id');
+          // Clear edge-middleware cookies
+          document.cookie = 'daraliraq_token=; path=/; max-age=0';
+          document.cookie = 'daraliraq_role=; path=/; max-age=0';
         }
         set({ user: null, token: null });
       },

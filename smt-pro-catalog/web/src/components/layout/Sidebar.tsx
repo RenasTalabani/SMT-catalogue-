@@ -3,20 +3,30 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Package, ShoppingCart, Warehouse,
-  TrendingUp, BarChart3, Settings, LogOut, Package2, Tag, X, FileText, Store,
+  TrendingUp, BarChart3, Settings, LogOut, Package2, Tag, X,
+  FileText, Store, Users, ShieldCheck,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore } from '@/store/auth.store';
 
-const nav = [
+type NavItem = {
+  href:  string;
+  label: string;
+  icon:  React.ElementType;
+  roles?: string[]; // undefined = all authenticated users
+};
+
+const nav: NavItem[] = [
   { href: '/dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
   { href: '/products',   label: 'Products',   icon: Package },
   { href: '/categories', label: 'Categories', icon: Tag },
   { href: '/orders',     label: 'Orders',     icon: ShoppingCart },
   { href: '/invoices',   label: 'Invoices',   icon: FileText },
   { href: '/inventory',  label: 'Inventory',  icon: Warehouse },
-  { href: '/finance',    label: 'Finance',    icon: TrendingUp },
-  { href: '/reports',    label: 'Reports',    icon: BarChart3 },
+  { href: '/finance',    label: 'Finance',    icon: TrendingUp,  roles: ['super_admin', 'admin'] },
+  { href: '/reports',    label: 'Reports',    icon: BarChart3,   roles: ['super_admin', 'admin'] },
+  { href: '/users',      label: 'Users',      icon: Users,       roles: ['super_admin', 'admin'] },
+  { href: '/roles',      label: 'Roles',      icon: ShieldCheck, roles: ['super_admin', 'admin'] },
   { href: '/settings',   label: 'Settings',   icon: Settings },
 ];
 
@@ -32,6 +42,11 @@ interface SidebarProps {
 export default function Sidebar({ open = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
+  const role = user?.role ?? '';
+
+  const visibleNav = nav.filter(
+    (item) => !item.roles || item.roles.includes(role),
+  );
 
   const inner = (
     <aside className="flex h-full w-64 flex-col bg-dark-surface border-r border-dark-border">
@@ -60,7 +75,7 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-        {nav.map(({ href, label, icon: Icon }) => {
+        {visibleNav.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(href + '/');
           return (
             <Link
@@ -102,7 +117,7 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-white">{user?.name}</p>
-            <p className="text-xs text-[#94A3B8] capitalize">{user?.role}</p>
+            <p className="text-xs text-[#94A3B8] capitalize">{user?.role?.replace('_', ' ')}</p>
           </div>
         </div>
         <button
