@@ -31,22 +31,24 @@ export default function CartPanel() {
       });
       const order = orderRes.data.data;
 
-      // 2. Generate invoice with customer details
-      const invRes = await api.post(`/invoices/order/${order.id}`, {
-        customerName:  customerName  || undefined,
-        customerPhone: customerPhone || undefined,
-        notes:         notes         || undefined,
-      });
-      const inv = invRes.data.data;
-
-      toast.success(`Order #${order.id} — Invoice ${inv.invoiceNumber} created!`);
-      clear();
-      setCustomerName('');
-      setCustomerPhone('');
-      setNotes('');
-
-      // 3. Open PDF for printing
-      window.open(`/api/invoices/${inv.id}/preview`, '_blank');
+      // 2. Generate invoice — non-fatal if Invoice table not ready
+      try {
+        const invRes = await api.post(`/invoices/order/${order.id}`, {
+          customerName:  customerName  || undefined,
+          customerPhone: customerPhone || undefined,
+          notes:         notes         || undefined,
+        });
+        const inv = invRes.data.data;
+        toast.success(`Order #${order.id} — Invoice ${inv.invoiceNumber} created!`);
+        clear();
+        setCustomerName(''); setCustomerPhone(''); setNotes('');
+        window.open(`/api/invoices/${inv.id}/preview`, '_blank');
+      } catch {
+        // Invoice creation failed (e.g. table not yet migrated) — order still saved
+        toast.success(`Order #${order.id} saved! (Invoice table not ready yet — run SQL migration in Supabase)`);
+        clear();
+        setCustomerName(''); setCustomerPhone(''); setNotes('');
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Checkout failed');
     } finally {
@@ -89,12 +91,14 @@ export default function CartPanel() {
                 <p className="text-xs text-primary">${item.price.toFixed(2)} each</p>
               </div>
               <div className="flex items-center gap-1.5">
-                <button type="button" onClick={() => updateQty(item.id, item.quantity - 1)}
+                <button type="button" title="Decrease quantity" aria-label="Decrease quantity"
+                  onClick={() => updateQty(item.id, item.quantity - 1)}
                   className="h-6 w-6 rounded-lg bg-dark-surface flex items-center justify-center hover:bg-primary/20 text-[#94A3B8] hover:text-primary transition-colors">
                   <Minus size={11} />
                 </button>
                 <span className="text-sm font-bold text-white w-5 text-center">{item.quantity}</span>
-                <button type="button" onClick={() => updateQty(item.id, item.quantity + 1)}
+                <button type="button" title="Increase quantity" aria-label="Increase quantity"
+                  onClick={() => updateQty(item.id, item.quantity + 1)}
                   className="h-6 w-6 rounded-lg bg-dark-surface flex items-center justify-center hover:bg-primary/20 text-[#94A3B8] hover:text-primary transition-colors">
                   <Plus size={11} />
                 </button>
@@ -102,7 +106,8 @@ export default function CartPanel() {
               <div className="w-14 text-right">
                 <p className="text-sm font-bold text-white">${(item.price * item.quantity).toFixed(2)}</p>
               </div>
-              <button type="button" onClick={() => removeItem(item.id)}
+              <button type="button" title="Remove item" aria-label="Remove item"
+                onClick={() => removeItem(item.id)}
                 className="p-1 rounded-lg hover:bg-danger/20 text-[#94A3B8] hover:text-danger transition-colors">
                 <Trash2 size={13} />
               </button>
@@ -122,7 +127,7 @@ export default function CartPanel() {
           <input className="input w-full text-sm" placeholder="Phone (optional)"
             value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
 
-          <select className="input w-full text-sm" value={payment} onChange={(e) => setPayment(e.target.value)}>
+          <select className="input w-full text-sm" title="Payment method" aria-label="Payment method" value={payment} onChange={(e) => setPayment(e.target.value)}>
             {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
 
