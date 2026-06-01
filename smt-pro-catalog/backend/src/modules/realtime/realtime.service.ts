@@ -16,8 +16,8 @@ export const initSocketHandlers = (io: Server): void => {
     const role = (socket.handshake.auth as Record<string, string>)?.['role'];
 
     void socket.join(ROOMS.ALL);
-    if (role === 'admin' || role === 'employee') void socket.join(ROOMS.STAFF);
-    if (role === 'admin')                        void socket.join(ROOMS.ADMIN);
+    if (role === 'admin' || role === 'employee' || role === 'super_admin') void socket.join(ROOMS.STAFF);
+    if (role === 'admin' || role === 'super_admin')                        void socket.join(ROOMS.ADMIN);
 
     socket.on('disconnect', () => {});
   });

@@ -33,8 +33,9 @@ export default function OrdersPage() {
   const [generatingId, setGeneratingId] = useState<number | null>(null);
 
   const { data, isLoading } = useQuery<{ orders: Order[] }>({
-    queryKey: ['orders'],
-    queryFn:  () => fetcher('/orders?limit=50'),
+    queryKey:        ['orders'],
+    queryFn:         () => fetcher('/orders?limit=50'),
+    refetchInterval: 10_000,
   });
 
   useSocket(SocketEvent.orderCreated, () => void qc.invalidateQueries({ queryKey: ['orders'] }));

@@ -27,8 +27,9 @@ const TYPE_STYLE: Record<string, string> = {
 export default function InventoryPage() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery<{ movements: Movement[] }>({
-    queryKey: ['inventory'],
-    queryFn:  () => fetcher('/inventory/movements?limit=50'),
+    queryKey:        ['inventory'],
+    queryFn:         () => fetcher('/inventory/movements?limit=50'),
+    refetchInterval: 10_000,
   });
 
   useSocket(SocketEvent.stockUpdated, () => void qc.invalidateQueries({ queryKey: ['inventory'] }));

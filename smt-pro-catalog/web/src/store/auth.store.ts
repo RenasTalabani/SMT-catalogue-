@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api } from '@/lib/api';
+import { resetSocket } from '@/lib/socket';
 
 interface User {
   id:    number;
@@ -40,6 +41,7 @@ export const useAuthStore = create<AuthState>()(
             document.cookie = `daraliraq_token=${token}; path=/; SameSite=Lax`;
             document.cookie = `daraliraq_role=${user.role}; path=/; SameSite=Lax`;
           }
+          resetSocket(); // reconnect with fresh credentials
           set({ user, token, isLoading: false });
         } catch (err) {
           set({ isLoading: false });
@@ -56,6 +58,7 @@ export const useAuthStore = create<AuthState>()(
           document.cookie = 'daraliraq_token=; path=/; max-age=0';
           document.cookie = 'daraliraq_role=; path=/; max-age=0';
         }
+        resetSocket();
         set({ user: null, token: null });
       },
     }),

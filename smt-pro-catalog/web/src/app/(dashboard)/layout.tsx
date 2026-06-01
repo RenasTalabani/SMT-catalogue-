@@ -5,6 +5,7 @@ import { Menu } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import Sidebar from '@/components/layout/Sidebar';
 import { useSocketConnect } from '@/hooks/useSocket';
+import { useRealtimeNotifications } from '@/hooks/useRealtimeNotifications';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore();
@@ -12,6 +13,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useSocketConnect();
+  useRealtimeNotifications();
 
   useEffect(() => {
     if (!token) router.replace('/login');

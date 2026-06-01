@@ -1,7 +1,8 @@
 import prisma from '../../config/prisma';
 import { get, set } from '../../shared/utils/cache.util';
 
-const CACHE_TTL = 300;
+const CACHE_TTL         = 300;
+const DASHBOARD_CACHE_TTL = 15; // fast refresh for live dashboard
 
 export const getDashboard = async () => {
   const cacheKey = 'reports:dashboard';
@@ -14,7 +15,7 @@ export const getDashboard = async () => {
   const [
     totalProducts, totalOrders, totalUsers,
     todayOrders, completedOrders, pendingOrders, cancelledOrders,
-    revenueAgg, inventoryAgg, lowStockCount, recentOrders,
+    revenueAgg, inventoryAgg, lowStockCount, recentOrders, lowStockItems,
   ] = await Promise.all([
     prisma.product.count(),
     prisma.order.count(),
@@ -31,6 +32,12 @@ export const getDashboard = async () => {
       take:    10,
       select:  { id: true, finalAmount: true, status: true, createdAt: true },
     }),
+    prisma.product.findMany({
+      where:   { quantity: { lte: 5 } },
+      orderBy: { quantity: 'asc' },
+      take:    10,
+      select:  { id: true, name: true, sku: true, quantity: true },
+    }),
   ]);
 
   const result = {
@@ -39,10 +46,11 @@ export const getDashboard = async () => {
     totalRevenue:    parseFloat((revenueAgg._sum.totalAmount ?? 0).toFixed(2)),
     totalStockUnits: inventoryAgg._sum.quantity ?? 0,
     lowStockCount,
+    lowStockItems,
     recentOrders,
   };
 
-  await set(cacheKey, result, CACHE_TTL);
+  await set(cacheKey, result, DASHBOARD_CACHE_TTL);
   return result;
 };
 
