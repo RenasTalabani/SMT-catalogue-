@@ -18,6 +18,7 @@ import inventoryRoutes    from './modules/inventory/inventory.routes';
 import financeRoutes      from './modules/finance/finance.routes';
 import reportRoutes       from './modules/reports/reports.routes';
 import notificationRoutes from './modules/notifications/notification.routes';
+import invoiceRoutes      from './modules/invoices/invoice.routes';
 
 const app = express();
 const isProd = process.env['NODE_ENV'] === 'production';
@@ -84,6 +85,7 @@ app.use('/api/inventory',     inventoryRoutes);
 app.use('/api/finance',       financeRoutes);
 app.use('/api/reports',       reportRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/invoices',     invoiceRoutes);
 
 // ─── Sentry error capture (must be before error handler) ─────────────────────
 Sentry.setupExpressErrorHandler(app);

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Package, ShoppingCart, Warehouse,
-  TrendingUp, BarChart3, Settings, LogOut, Package2, Tag, X,
+  TrendingUp, BarChart3, Settings, LogOut, Package2, Tag, X, FileText,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore } from '@/store/auth.store';
@@ -13,6 +13,7 @@ const nav = [
   { href: '/products',   label: 'Products',   icon: Package },
   { href: '/categories', label: 'Categories', icon: Tag },
   { href: '/orders',     label: 'Orders',     icon: ShoppingCart },
+  { href: '/invoices',   label: 'Invoices',   icon: FileText },
   { href: '/inventory',  label: 'Inventory',  icon: Warehouse },
   { href: '/finance',    label: 'Finance',    icon: TrendingUp },
   { href: '/reports',    label: 'Reports',    icon: BarChart3 },
@@ -44,6 +45,8 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
           <button
             type="button"
             onClick={onClose}
+            title="Close menu"
+            aria-label="Close menu"
             className="md:hidden flex h-8 w-8 items-center justify-center rounded-lg text-[#94A3B8] hover:text-white hover:bg-dark-card"
           >
             <X size={18} />

@@ -1,10 +1,13 @@
 'use client';
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetcher } from '@/lib/api';
+import { fetcher, api } from '@/lib/api';
 import { useSocket } from '@/hooks/useSocket';
 import { SocketEvent } from '@/lib/socket';
 import Header from '@/components/layout/Header';
 import { clsx } from 'clsx';
+import { FileText, Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface Order {
   id:            number;
@@ -23,6 +26,8 @@ const STATUS_STYLE: Record<string, string> = {
 
 export default function OrdersPage() {
   const qc = useQueryClient();
+  const [generatingId, setGeneratingId] = useState<number | null>(null);
+
   const { data, isLoading } = useQuery<{ orders: Order[] }>({
     queryKey: ['orders'],
     queryFn:  () => fetcher('/orders?limit=50'),
@@ -32,6 +37,26 @@ export default function OrdersPage() {
   useSocket(SocketEvent.orderUpdated, () => void qc.invalidateQueries({ queryKey: ['orders'] }));
 
   const orders = data?.orders ?? [];
+
+  const generateInvoice = async (orderId: number) => {
+    setGeneratingId(orderId);
+    try {
+      const res = await api.post(`/invoices/order/${orderId}`);
+      const inv = res.data.data;
+      toast.success(`Invoice ${inv.invoiceNumber} created!`);
+      // Open PDF preview in new tab
+      window.open(`/api/invoices/${inv.id}/preview`, '_blank');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to generate invoice';
+      if (msg.includes('already exists')) {
+        toast.error('Invoice already exists for this order');
+      } else {
+        toast.error(msg);
+      }
+    } finally {
+      setGeneratingId(null);
+    }
+  };
 
   return (
     <div className="flex flex-col">
@@ -52,13 +77,14 @@ export default function OrdersPage() {
                   <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-[#94A3B8]">Total</th>
                   <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wide text-[#94A3B8]">Status</th>
                   <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-[#94A3B8]">Date</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wide text-[#94A3B8]">Invoice</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-dark-border">
                 {isLoading ? (
-                  <tr><td colSpan={6} className="py-10 text-center text-[#94A3B8]">Loading…</td></tr>
+                  <tr><td colSpan={7} className="py-10 text-center text-[#94A3B8]">Loading…</td></tr>
                 ) : orders.length === 0 ? (
-                  <tr><td colSpan={6} className="py-10 text-center text-[#94A3B8]">No orders yet</td></tr>
+                  <tr><td colSpan={7} className="py-10 text-center text-[#94A3B8]">No orders yet</td></tr>
                 ) : orders.map((o) => (
                   <tr key={o.id} className="hover:bg-dark-card transition-colors">
                     <td className="px-4 py-3 font-semibold text-primary">#{o.id}</td>
@@ -71,6 +97,20 @@ export default function OrdersPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right text-[#94A3B8]">{new Date(o.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        type="button"
+                        onClick={() => generateInvoice(o.id)}
+                        disabled={generatingId === o.id}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/15 text-primary hover:bg-primary/25 text-xs font-medium transition-colors disabled:opacity-50"
+                        title="Generate Invoice"
+                      >
+                        {generatingId === o.id
+                          ? <Loader2 size={13} className="animate-spin" />
+                          : <FileText size={13} />}
+                        Invoice
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
