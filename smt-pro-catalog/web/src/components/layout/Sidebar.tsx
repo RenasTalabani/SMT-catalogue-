@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Package, ShoppingCart, Warehouse,
-  TrendingUp, BarChart3, Settings, LogOut, Package2, Tag, X, FileText,
+  TrendingUp, BarChart3, Settings, LogOut, Package2, Tag, X, FileText, Store,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore } from '@/store/auth.store';
@@ -18,6 +18,10 @@ const nav = [
   { href: '/finance',    label: 'Finance',    icon: TrendingUp },
   { href: '/reports',    label: 'Reports',    icon: BarChart3 },
   { href: '/settings',   label: 'Settings',   icon: Settings },
+];
+
+const externalNav = [
+  { href: '/shop', label: 'Customer Shop', icon: Store },
 ];
 
 interface SidebarProps {
@@ -77,6 +81,18 @@ export default function Sidebar({ open = false, onClose }: SidebarProps) {
           );
         })}
       </nav>
+
+      {/* External links */}
+      <div className="border-t border-dark-border px-3 py-2">
+        {externalNav.map(({ href, label, icon: Icon }) => (
+          <a key={href} href={href} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-[#94A3B8] hover:bg-dark-card hover:text-white transition-all duration-150">
+            <Icon size={18} strokeWidth={1.8} />
+            {label}
+            <span className="ml-auto text-[10px] text-[#64748B]">↗</span>
+          </a>
+        ))}
+      </div>
 
       {/* User */}
       <div className="border-t border-dark-border p-4">

@@ -10,8 +10,10 @@ import { SocketEvent } from '@/lib/socket';
 import Header from '@/components/layout/Header';
 import { clsx } from 'clsx';
 import Image from 'next/image';
-import { Plus, X, Pencil, Trash2, ImagePlus } from 'lucide-react';
+import { Plus, X, Pencil, Trash2, ImagePlus, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useCartStore } from '@/store/cart.store';
+import CartPanel from '@/components/pos/CartPanel';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -296,6 +298,7 @@ export default function ProductsPage() {
   const [showModal,    setShowModal]    = useState(false);
   const [editProduct,  setEditProduct]  = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
+  const { addItem, itemCount, openCart } = useCartStore();
 
   const { data, isLoading } = useQuery<ProductsResponse>({
     queryKey: ['products'],
@@ -326,10 +329,23 @@ export default function ProductsPage() {
           <p className="text-sm text-[#94A3B8]">
             {data?.total ?? 0} product{(data?.total ?? 0) !== 1 ? 's' : ''}
           </p>
-          <button type="button" onClick={openAdd} className="btn-primary flex items-center gap-2">
-            <Plus size={16} />
-            Add Product
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Cart button */}
+            <button type="button" onClick={openCart}
+              className="relative flex items-center gap-2 rounded-xl border border-dark-border bg-dark-surface px-4 py-2 text-sm font-medium text-[#94A3B8] hover:text-white hover:border-primary/40 transition-colors">
+              <ShoppingCart size={16} />
+              Cart
+              {itemCount > 0 && (
+                <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">
+                  {itemCount}
+                </span>
+              )}
+            </button>
+            <button type="button" onClick={openAdd} className="btn-primary flex items-center gap-2">
+              <Plus size={16} />
+              Add Product
+            </button>
+          </div>
         </div>
 
         <div className="card overflow-hidden">
@@ -337,7 +353,7 @@ export default function ProductsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-dark-border bg-dark-surface">
-                  {['Product', 'Category', 'SKU', 'Price', 'Stock', 'Status', 'Actions'].map((h, i) => (
+                  {['Product', 'Category', 'SKU', 'Price', 'Stock', 'Status', 'Sell', 'Actions'].map((h, i) => (
                     <th key={h} className={clsx(
                       'px-4 py-3 text-xs font-medium uppercase tracking-wide text-[#94A3B8]',
                       i <= 2 ? 'text-left' : i <= 4 ? 'text-right' : 'text-center',
@@ -399,6 +415,20 @@ export default function ProductsPage() {
                         {p.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
+                    {/* Sell button */}
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        type="button"
+                        disabled={p.quantity === 0 || !p.isActive}
+                        onClick={() => { addItem({ id: p.id, name: p.name, price: p.price, imageUrl: p.imageUrl }); }}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-green-500/15 px-3 py-1.5 text-xs font-semibold text-green-400 hover:bg-green-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        title={p.quantity === 0 ? 'Out of stock' : 'Add to cart'}
+                      >
+                        <ShoppingCart size={12} />
+                        Sell
+                      </button>
+                    </td>
+                    {/* Edit / Delete */}
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1.5">
                         <button type="button" onClick={() => openEdit(p)} aria-label="Edit product"
@@ -419,6 +449,7 @@ export default function ProductsPage() {
         </div>
       </div>
 
+      <CartPanel />
       <ProductModal
         key={editProduct ? `edit-${editProduct.id}` : 'new'}
         open={showModal}
