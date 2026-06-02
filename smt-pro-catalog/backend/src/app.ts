@@ -20,6 +20,7 @@ import reportRoutes       from './modules/reports/reports.routes';
 import notificationRoutes from './modules/notifications/notification.routes';
 import invoiceRoutes      from './modules/invoices/invoice.routes';
 import userRoutes         from './modules/users/user.routes';
+import customerRoutes     from './modules/customers/customer.routes';
 import shopRoutes         from './modules/shop/shop.routes';
 
 const app = express();
@@ -89,6 +90,7 @@ app.use('/api/reports',       reportRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/invoices',     invoiceRoutes);
 app.use('/api/users',        userRoutes);
+app.use('/api/customers',    customerRoutes);
 app.use('/api/shop',         shopRoutes);       // public — no auth required
 
 // ─── Sentry error capture (must be before error handler) ─────────────────────
