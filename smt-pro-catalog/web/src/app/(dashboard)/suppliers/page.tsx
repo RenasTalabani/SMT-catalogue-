@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import ExportButton from '@/components/ui/ExportButton';
 import {
   Truck, Search, Plus, Phone, Mail, MapPin,
   Edit2, Trash2, X, Package, TrendingUp, ChevronRight,
@@ -119,12 +120,15 @@ export default function SuppliersPage() {
           <h1 className="text-2xl font-bold text-white">Suppliers</h1>
           <p className="text-sm text-[#94A3B8] mt-1">{total} supplier{total !== 1 ? 's' : ''}</p>
         </div>
-        {canWrite && (
-          <button type="button" onClick={openCreate}
-            className="flex items-center gap-2 btn-primary text-sm">
-            <Plus size={15} /> Add Supplier
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <ExportButton endpoint="/export/suppliers" filename="suppliers" />
+          {canWrite && (
+            <button type="button" onClick={openCreate}
+              className="flex items-center gap-2 btn-primary text-sm">
+              <Plus size={15} /> Add Supplier
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Modal */}
@@ -199,11 +203,11 @@ export default function SuppliersPage() {
                 <div className="flex items-center gap-1 flex-shrink-0">
                   {canWrite && (
                     <>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); openEdit(s); }}
+                      <button type="button" title="Edit supplier" onClick={(e) => { e.stopPropagation(); openEdit(s); }}
                         className="p-1.5 rounded-lg hover:bg-dark-card text-[#94A3B8] hover:text-primary transition-colors">
                         <Edit2 size={14} />
                       </button>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); handleDelete(s); }}
+                      <button type="button" title="Delete supplier" onClick={(e) => { e.stopPropagation(); handleDelete(s); }}
                         className="p-1.5 rounded-lg hover:bg-dark-card text-[#94A3B8] hover:text-red-400 transition-colors">
                         <Trash2 size={14} />
                       </button>

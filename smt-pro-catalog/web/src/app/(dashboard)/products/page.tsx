@@ -11,6 +11,7 @@ import Header from '@/components/layout/Header';
 import { clsx } from 'clsx';
 import Image from 'next/image';
 import { Plus, X, Pencil, Trash2, ImagePlus, ShoppingCart } from 'lucide-react';
+import ExportButton from '@/components/ui/ExportButton';
 import toast from 'react-hot-toast';
 import { useCartStore } from '@/store/cart.store';
 import CartPanel from '@/components/pos/CartPanel';
@@ -329,6 +330,7 @@ export default function ProductsPage() {
           <p className="text-sm text-[#94A3B8]">
             {data?.total ?? 0} product{(data?.total ?? 0) !== 1 ? 's' : ''}
           </p>
+          <ExportButton endpoint="/export/products" filename="products" />
           <div className="flex items-center gap-3">
             {/* Cart button */}
             <button type="button" onClick={openCart}

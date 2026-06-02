@@ -5,6 +5,7 @@ import {
   Users, Search, UserPlus, Phone, Mail, MapPin,
   Trash2, Edit2, X, ChevronRight, ShoppingCart, TrendingUp,
 } from 'lucide-react';
+import ExportButton from '@/components/ui/ExportButton';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import toast from 'react-hot-toast';
@@ -99,10 +100,13 @@ export default function CustomersPage() {
           <h1 className="text-2xl font-bold text-white">Customers</h1>
           <p className="text-sm text-[#94A3B8] mt-1">{total} customer{total !== 1 ? 's' : ''}</p>
         </div>
-        <button type="button" onClick={openCreate}
-          className="flex items-center gap-2 btn-primary text-sm">
-          <UserPlus size={15} /> Add Customer
-        </button>
+        <div className="flex items-center gap-2">
+          <ExportButton endpoint="/export/customers" filename="customers" />
+          <button type="button" onClick={openCreate}
+            className="flex items-center gap-2 btn-primary text-sm">
+            <UserPlus size={15} /> Add Customer
+          </button>
+        </div>
       </div>
 
       {/* Create / Edit modal */}
@@ -172,12 +176,12 @@ export default function CustomersPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
-                  <button type="button" onClick={(e) => { e.stopPropagation(); openEdit(c); }}
+                  <button type="button" title="Edit customer" onClick={(e) => { e.stopPropagation(); openEdit(c); }}
                     className="p-1.5 rounded-lg hover:bg-dark-card text-[#94A3B8] hover:text-primary transition-colors">
                     <Edit2 size={14} />
                   </button>
                   {canDelete && (
-                    <button type="button" onClick={(e) => { e.stopPropagation(); handleDelete(c); }}
+                    <button type="button" title="Delete customer" onClick={(e) => { e.stopPropagation(); handleDelete(c); }}
                       className="p-1.5 rounded-lg hover:bg-dark-card text-[#94A3B8] hover:text-red-400 transition-colors">
                       <Trash2 size={14} />
                     </button>

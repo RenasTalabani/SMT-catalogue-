@@ -7,6 +7,7 @@ import { SocketEvent } from '@/lib/socket';
 import Header from '@/components/layout/Header';
 import { clsx } from 'clsx';
 import { FileText, Loader2 } from 'lucide-react';
+import ExportButton from '@/components/ui/ExportButton';
 import toast from 'react-hot-toast';
 
 interface Order {
@@ -70,7 +71,10 @@ export default function OrdersPage() {
         <div className="card overflow-hidden">
           <div className="border-b border-dark-border px-6 py-4 flex items-center justify-between">
             <h2 className="font-semibold text-white">All Orders</h2>
-            <span className="text-xs text-[#94A3B8]">{orders.length} orders</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-[#94A3B8]">{orders.length} orders</span>
+              <ExportButton endpoint="/export/orders" filename="orders" />
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

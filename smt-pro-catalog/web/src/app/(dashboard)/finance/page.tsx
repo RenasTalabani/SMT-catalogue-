@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { fetcher, api } from '@/lib/api';
 import Header from '@/components/layout/Header';
 import { TrendingUp, TrendingDown, DollarSign, Plus, Trash2, X } from 'lucide-react';
+import ExportButton from '@/components/ui/ExportButton';
 import { clsx } from 'clsx';
 import toast from 'react-hot-toast';
 
@@ -159,6 +160,11 @@ export default function FinancePage() {
     <div className="flex flex-col">
       <Header title="Finance" />
       <div className="p-6 space-y-6">
+
+        {/* Export */}
+        <div className="flex justify-end">
+          <ExportButton endpoint="/export/finance" filename="finance" />
+        </div>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
