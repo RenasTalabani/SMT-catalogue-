@@ -62,4 +62,5 @@
   .gradient-login  { background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 55%, #1D4ED8 100%); }
   .text-primary    { color: #6C63FF; }
   .glow-primary    { box-shadow: 0 0 20px rgba(108,99,255,0.35); }
+  .bar-fill        { width: var(--bar-pct, 0%); }
 }
