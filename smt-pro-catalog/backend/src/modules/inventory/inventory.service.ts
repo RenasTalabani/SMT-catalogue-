@@ -2,6 +2,7 @@ import prisma from '../../config/prisma';
 import { getIO } from '../../config/socket';
 import { get, set, invalidate } from '../../shared/utils/cache.util';
 import { broadcastToAdmins } from '../notifications/notification.service';
+import { sendLowStockAlert } from '../../services/email.service';
 
 const MOVEMENT_SELECT = {
   id: true, type: true, quantity: true, previousQty: true,
@@ -64,6 +65,13 @@ export const recordMovement = async (employeeId: number, { productId, type, quan
       'warning',
       { productId, quantity: updated.quantity },
     );
+    // Send email alert to all admin + super_admin users
+    const admins = await prisma.user.findMany({
+      where:  { role: { in: ['admin', 'super_admin'] }, isActive: true, email: { not: undefined } },
+      select: { email: true },
+    });
+    const emails = admins.map((a) => a.email).filter(Boolean) as string[];
+    void sendLowStockAlert([{ ...updated, sku: null }], emails);
   }
 
   return movement;

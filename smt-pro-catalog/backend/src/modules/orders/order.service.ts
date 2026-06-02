@@ -4,6 +4,7 @@ import { invalidate } from '../../shared/utils/cache.util';
 import { audit } from '../../shared/middlewares/audit.middleware';
 import { JwtPayload } from '../../types';
 import { broadcastToAdmins } from '../notifications/notification.service';
+import { sendLowStockAlert } from '../../services/email.service';
 
 const ORDER_SELECT = {
   id: true, totalAmount: true, finalAmount: true, discount: true,
@@ -113,6 +114,21 @@ export const create = async (userId: number, input: CreateOrderInput) => {
     'order',
     { orderId: order.id, finalAmount, paymentMethod },
   );
+
+  // Check if any ordered products are now low stock and send email
+  const nowLowStock = await prisma.product.findMany({
+    where:  { id: { in: productIds } },
+    select: { name: true, sku: true, quantity: true, lowStockAlert: true },
+  }).then((ps) => ps.filter((p) => p.quantity <= p.lowStockAlert)).catch(() => []);
+
+  if (nowLowStock.length > 0) {
+    const admins = await prisma.user.findMany({
+      where:  { role: { in: ['admin', 'super_admin'] }, isActive: true, email: { not: undefined } },
+      select: { email: true },
+    });
+    const emails = admins.map((a) => a.email).filter(Boolean) as string[];
+    void sendLowStockAlert(nowLowStock, emails);
+  }
 
   // Track discount usage for employee monitoring
   if (discount > 0) {
