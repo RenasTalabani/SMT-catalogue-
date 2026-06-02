@@ -1,6 +1,12 @@
 import { io, Socket } from 'socket.io-client';
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
+// NEXT_PUBLIC_BACKEND_URL must be set in Railway web service env vars.
+// Socket.IO cannot go through Next.js rewrites (HTTP only), so it must connect
+// directly to the backend. Fallback to localhost for local dev.
+const BASE =
+  process.env.NEXT_PUBLIC_BACKEND_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  'http://localhost:3000';
 
 let _socket: Socket | null = null;
 
