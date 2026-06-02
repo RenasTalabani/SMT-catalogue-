@@ -14,5 +14,6 @@ router.get('/category-breakdown', reportsController.getCategoryBreakdown as Requ
 router.get('/audit',              restrictTo('super_admin', 'admin') as RequestHandler, reportsController.getAuditLogs          as RequestHandler);
 router.get('/audit/export',       restrictTo('super_admin', 'admin') as RequestHandler, reportsController.exportAuditCsv        as RequestHandler);
 router.get('/employee-performance', restrictTo('super_admin', 'admin') as RequestHandler, reportsController.getEmployeePerformance as RequestHandler);
+router.get('/profit',               restrictTo('super_admin', 'admin') as RequestHandler, reportsController.getProfitAnalytics     as RequestHandler);
 
 export default router;

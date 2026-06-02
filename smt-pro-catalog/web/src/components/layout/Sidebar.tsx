@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Package, ShoppingCart, Warehouse,
   TrendingUp, BarChart3, Settings, LogOut, Package2, Tag, X,
-  FileText, Store, Users, ShieldCheck, UserCheck, ClipboardList, Truck, BellRing, BarChart2,
+  FileText, Store, Users, ShieldCheck, UserCheck, ClipboardList, Truck, BellRing, BarChart2, PieChart,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore } from '@/store/auth.store';
@@ -29,6 +29,7 @@ const nav: NavItem[] = [
   { href: '/finance',      label: 'Finance',      icon: TrendingUp,  roles: ['super_admin', 'admin'] },
   { href: '/reports',      label: 'Reports',      icon: BarChart3,   roles: ['super_admin', 'admin'] },
   { href: '/performance',  label: 'Performance',  icon: BarChart2,   roles: ['super_admin', 'admin'] },
+  { href: '/profit',       label: 'Profit',       icon: PieChart,    roles: ['super_admin', 'admin'] },
   { href: '/users',      label: 'Users',      icon: Users,         roles: ['super_admin', 'admin'] },
   { href: '/roles',      label: 'Roles',      icon: ShieldCheck,   roles: ['super_admin', 'admin'] },
   { href: '/audit',      label: 'Audit Logs', icon: ClipboardList, roles: ['super_admin', 'admin'] },

@@ -316,3 +316,120 @@ export const getEmployeePerformance = async ({
   await set(cacheKey, result, 60);
   return result;
 };
+
+export const getProfitAnalytics = async ({
+  from, to, groupBy = 'day',
+}: { from?: string; to?: string; groupBy?: string } = {}) => {
+  const cacheKey = `reports:profit:${String(from)}:${String(to)}:${groupBy}`;
+  const cached   = await get<unknown>(cacheKey);
+  if (cached) return cached;
+
+  // Default: last 30 days
+  const endDate   = to   ? new Date(new Date(to).setHours(23, 59, 59, 999)) : new Date();
+  const startDate = from ? new Date(from) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  const dateWhere = { createdAt: { gte: startDate, lte: endDate } };
+
+  // Fetch completed orders with items + product cost prices
+  const [orders, expenses, products] = await Promise.all([
+    prisma.order.findMany({
+      where:  { status: 'COMPLETED', ...dateWhere },
+      select: {
+        id: true, finalAmount: true, createdAt: true,
+        items: {
+          select: {
+            quantity: true, price: true,
+            product: { select: { id: true, name: true, costPrice: true } },
+          },
+        },
+      },
+    }),
+    prisma.expense.findMany({
+      where:  dateWhere,
+      select: { amount: true, createdAt: true },
+    }),
+    prisma.product.findMany({
+      select: { id: true, name: true, sku: true, price: true, costPrice: true, category: true },
+    }),
+  ]);
+
+  // ── Daily / Monthly breakdown ─────────────────────────────────────────────
+  const fmt = (d: Date) =>
+    groupBy === 'month'
+      ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  const dayMap: Record<string, { revenue: number; cogs: number; expenses: number }> = {};
+
+  for (const order of orders) {
+    const key  = fmt(new Date(order.createdAt));
+    if (!dayMap[key]) dayMap[key] = { revenue: 0, cogs: 0, expenses: 0 };
+    dayMap[key].revenue += order.finalAmount ?? 0;
+    for (const item of order.items) {
+      dayMap[key].cogs += (item.product.costPrice ?? 0) * item.quantity;
+    }
+  }
+  for (const exp of expenses) {
+    const key = fmt(new Date(exp.createdAt));
+    if (!dayMap[key]) dayMap[key] = { revenue: 0, cogs: 0, expenses: 0 };
+    dayMap[key].expenses += exp.amount;
+  }
+
+  const timeline = Object.entries(dayMap)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, d]) => ({
+      date,
+      revenue:     parseFloat(d.revenue.toFixed(2)),
+      cogs:        parseFloat(d.cogs.toFixed(2)),
+      expenses:    parseFloat(d.expenses.toFixed(2)),
+      grossProfit: parseFloat((d.revenue - d.cogs).toFixed(2)),
+      netProfit:   parseFloat((d.revenue - d.cogs - d.expenses).toFixed(2)),
+    }));
+
+  // ── Product profit analysis ───────────────────────────────────────────────
+  const productSales: Record<number, { name: string; sku: string | null; category: string; revenue: number; cogs: number; unitsSold: number }> = {};
+
+  for (const order of orders) {
+    for (const item of order.items) {
+      const pid = item.product.id;
+      if (!productSales[pid]) {
+        const p = products.find((x) => x.id === pid);
+        productSales[pid] = { name: p?.name ?? 'Unknown', sku: p?.sku ?? null, category: p?.category ?? '', revenue: 0, cogs: 0, unitsSold: 0 };
+      }
+      productSales[pid].revenue  += item.price * item.quantity;
+      productSales[pid].cogs     += (item.product.costPrice ?? 0) * item.quantity;
+      productSales[pid].unitsSold += item.quantity;
+    }
+  }
+
+  const productList = Object.entries(productSales).map(([id, d]) => ({
+    id:          parseInt(id),
+    name:        d.name,
+    sku:         d.sku,
+    category:    d.category,
+    revenue:     parseFloat(d.revenue.toFixed(2)),
+    cogs:        parseFloat(d.cogs.toFixed(2)),
+    grossProfit: parseFloat((d.revenue - d.cogs).toFixed(2)),
+    margin:      d.revenue > 0 ? parseFloat(((d.revenue - d.cogs) / d.revenue * 100).toFixed(1)) : 0,
+    unitsSold:   d.unitsSold,
+  })).sort((a, b) => b.grossProfit - a.grossProfit);
+
+  // ── Totals ────────────────────────────────────────────────────────────────
+  const totalRevenue  = parseFloat(orders.reduce((s, o) => s + (o.finalAmount ?? 0), 0).toFixed(2));
+  const totalCogs     = parseFloat(orders.reduce((s, o) => s + o.items.reduce((si, i) => si + (i.product.costPrice ?? 0) * i.quantity, 0), 0).toFixed(2));
+  const totalExpenses = parseFloat(expenses.reduce((s, e) => s + e.amount, 0).toFixed(2));
+  const grossProfit   = parseFloat((totalRevenue - totalCogs).toFixed(2));
+  const netProfit     = parseFloat((grossProfit - totalExpenses).toFixed(2));
+  const grossMargin   = totalRevenue > 0 ? parseFloat((grossProfit / totalRevenue * 100).toFixed(1)) : 0;
+
+  const result = {
+    summary: { totalRevenue, totalCogs, totalExpenses, grossProfit, netProfit, grossMargin },
+    timeline,
+    topProducts:   productList.slice(0, 10),
+    worstProducts: [...productList].sort((a, b) => a.grossProfit - b.grossProfit).slice(0, 10),
+    period: { from: startDate, to: endDate },
+  };
+
+  await set(cacheKey, result, CACHE_TTL);
+  return result;
+};

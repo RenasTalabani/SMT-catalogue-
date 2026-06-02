@@ -34,6 +34,11 @@ export const getEmployeePerformance = async (req: Request, res: Response): Promi
   catch (e) { resolve(e as Error, res); }
 };
 
+export const getProfitAnalytics = async (req: Request, res: Response): Promise<void> => {
+  try { success(res, await reportsService.getProfitAnalytics(req.query as Record<string, string>)); }
+  catch (e) { resolve(e as Error, res); }
+};
+
 export const exportAuditCsv = async (req: Request, res: Response): Promise<void> => {
   try {
     const logs = await reportsService.exportAuditLogs(req.query as Record<string, string>);
