@@ -13,8 +13,9 @@ const handleUploadError: ErrorRequestHandler = (err, _req, res, next) => {
   next();
 };
 
-router.get('/',    productController.getAll   as RequestHandler);
-router.get('/:id', productController.getById  as RequestHandler);
+router.get('/',                  productController.getAll       as RequestHandler);
+router.get('/barcode/:code',     productController.getByBarcode as RequestHandler);
+router.get('/:id',               productController.getById      as RequestHandler);
 
 router.post('/',
   protect as RequestHandler,

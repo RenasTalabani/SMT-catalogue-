@@ -59,6 +59,15 @@ export const getAll = async ({ category, search, page = 1, limit = 20 }: Product
   return result;
 };
 
+export const getByBarcode = async (code: string) => {
+  const product = await prisma.product.findFirst({
+    where: { OR: [{ barcode: code }, { sku: code }] },
+    select: SELECT,
+  });
+  if (!product) throw new Error('PRODUCT_NOT_FOUND');
+  return product;
+};
+
 export const getById = async (id: string | number) => {
   const product = await prisma.product.findUnique({
     where: { id: parseInt(String(id)) },

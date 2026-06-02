@@ -11,10 +11,11 @@ import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/dashboard/presentation/pages/add_product_page.dart';
 import '../../features/dashboard/presentation/pages/manage_categories_page.dart';
 import '../../shared/widgets/scaffold_with_nav.dart';
+import '../../features/barcode/barcode_scanner_screen.dart';
 
 class AppRoutes {
-  static const login    = '/login';
-  static const home     = '/';
+  static const login         = '/login';
+  static const home          = '/';
   static const categories    = '/categories';
   static const favorites     = '/favorites';
   static const dashboard     = '/dashboard';
@@ -22,6 +23,7 @@ class AppRoutes {
   static const addProduct    = '/dashboard/add-product';
   static const editProduct   = '/dashboard/edit-product/:id';
   static const manageCategories = '/dashboard/categories';
+  static const barcodeScanner  = '/barcode-scanner';
 
   static String productDetailPath(String id) => '/products/$id';
   static String editProductPath(String id)    => '/dashboard/edit-product/$id';
@@ -83,6 +85,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.manageCategories,
         parentNavigatorKey: _rootNavigatorKey,
         builder: (ctx, _) => const ManageCategoriesPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.barcodeScanner,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (ctx, _) => const BarcodeScannerScreen(),
       ),
     ],
   );

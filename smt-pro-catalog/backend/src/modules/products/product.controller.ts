@@ -28,6 +28,12 @@ export const getById = async (req: Request, res: Response): Promise<void> => {
   } catch (e) { resolve(e as Error, res); }
 };
 
+export const getByBarcode = async (req: Request, res: Response): Promise<void> => {
+  try {
+    success(res, await productService.getByBarcode(req.params['code']!));
+  } catch (e) { resolve(e as Error, res); }
+};
+
 export const create = async (req: Request, res: Response): Promise<void> => {
   try {
     const b = req.body as Record<string, unknown>;
