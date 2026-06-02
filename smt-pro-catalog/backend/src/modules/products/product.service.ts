@@ -1,6 +1,9 @@
 import prisma from '../../config/prisma';
 import { uploadToCloudinary, deleteFromCloudinary, isCloudinaryConfigured } from '../../config/cloudinary';
 import { getIO } from '../../config/socket';
+import { get, set, invalidate } from '../../shared/utils/cache.util';
+
+const PRODUCT_CACHE_TTL = 60; // 1 minute — products change frequently
 
 const SELECT = {
   id: true, name: true, description: true,
@@ -35,6 +38,10 @@ interface CreateProductInput {
 }
 
 export const getAll = async ({ category, search, page = 1, limit = 20 }: ProductFilters = {}) => {
+  const cacheKey = `products:list:${String(category)}:${String(search)}:${String(page)}:${String(limit)}`;
+  const cached   = await get<{ products: unknown[]; total: number; page: number; limit: number }>(cacheKey);
+  if (cached) return cached;
+
   const where: Record<string, unknown> = {};
   if (category) where['category'] = { equals: category, mode: 'insensitive' };
   if (search)   where['OR'] = [
@@ -47,7 +54,9 @@ export const getAll = async ({ category, search, page = 1, limit = 20 }: Product
     prisma.product.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take, select: SELECT }),
     prisma.product.count({ where }),
   ]);
-  return { products, total, page: parseInt(String(page)), limit: take };
+  const result = { products, total, page: parseInt(String(page)), limit: take };
+  await set(cacheKey, result, PRODUCT_CACHE_TTL);
+  return result;
 };
 
 export const getById = async (id: string | number) => {
@@ -73,6 +82,7 @@ export const create = async (data: CreateProductInput, imageBuffer?: Buffer, mim
     data: { ...data, imageUrl, imagePublicId },
     select: SELECT,
   });
+  await invalidate('products:');
   getIO()?.to('all').emit('product:created', product);
   return product;
 };
@@ -97,6 +107,7 @@ export const update = async (
     data: updates,
     select: SELECT,
   });
+  await invalidate('products:');
   getIO()?.to('all').emit('product:updated', product);
   return product;
 };
@@ -106,5 +117,6 @@ export const remove = async (id: string | number): Promise<void> => {
   if (!existing) throw new Error('PRODUCT_NOT_FOUND');
   await deleteFromCloudinary(existing.imagePublicId);
   await prisma.product.delete({ where: { id: parseInt(String(id)) } });
+  await invalidate('products:');
   getIO()?.to('all').emit('product:deleted', { id: parseInt(String(id)) });
 };

@@ -1,6 +1,6 @@
 import prisma from '../../config/prisma';
 import { getIO } from '../../config/socket';
-import { invalidate } from '../../shared/utils/cache.util';
+import { get, set, invalidate } from '../../shared/utils/cache.util';
 import { broadcastToAdmins } from '../notifications/notification.service';
 
 const MOVEMENT_SELECT = {
@@ -80,18 +80,26 @@ export const getInventoryValue = async () => {
 };
 
 export const getSuppliers = async ({ page = 1, limit = 20 }: { page?: string | number; limit?: string | number } = {}) => {
+  const cacheKey = `suppliers:list:${String(page)}:${String(limit)}`;
+  const cached   = await get<unknown>(cacheKey);
+  if (cached) return cached;
+
   const skip = (parseInt(String(page)) - 1) * parseInt(String(limit));
   const take = parseInt(String(limit));
   const [suppliers, total] = await Promise.all([
     prisma.supplier.findMany({ orderBy: { name: 'asc' }, skip, take }),
     prisma.supplier.count(),
   ]);
-  return { suppliers, total, page: parseInt(String(page)), limit: take };
+  const result = { suppliers, total, page: parseInt(String(page)), limit: take };
+  await set(cacheKey, result, 300);
+  return result;
 };
 
 export const createSupplier = async (data: SupplierInput) => {
   try {
-    return await prisma.supplier.create({ data });
+    const supplier = await prisma.supplier.create({ data });
+    await invalidate('suppliers:');
+    return supplier;
   } catch (e) {
     if ((e as { code?: string }).code === 'P2002') throw new Error('SUPPLIER_EMAIL_EXISTS');
     throw e;
@@ -102,7 +110,9 @@ export const updateSupplier = async (id: string | number, data: Partial<Supplier
   const existing = await prisma.supplier.findUnique({ where: { id: parseInt(String(id)) } });
   if (!existing) throw new Error('SUPPLIER_NOT_FOUND');
   try {
-    return await prisma.supplier.update({ where: { id: parseInt(String(id)) }, data });
+    const supplier = await prisma.supplier.update({ where: { id: parseInt(String(id)) }, data });
+    await invalidate('suppliers:');
+    return supplier;
   } catch (e) {
     if ((e as { code?: string }).code === 'P2002') throw new Error('SUPPLIER_EMAIL_EXISTS');
     throw e;
@@ -113,4 +123,5 @@ export const deleteSupplier = async (id: string | number): Promise<void> => {
   const existing = await prisma.supplier.findUnique({ where: { id: parseInt(String(id)) } });
   if (!existing) throw new Error('SUPPLIER_NOT_FOUND');
   await prisma.supplier.delete({ where: { id: parseInt(String(id)) } });
+  await invalidate('suppliers:');
 };

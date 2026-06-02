@@ -1,4 +1,7 @@
 import prisma from '../../config/prisma';
+import { get, set, invalidate } from '../../shared/utils/cache.util';
+
+const CACHE_TTL = 120; // 2 minutes
 
 export interface CustomerItem {
   id:        number;
@@ -19,6 +22,10 @@ const SELECT = {
 export const getAll = async (
   page = 1, limit = 20, search?: string,
 ): Promise<{ customers: CustomerItem[]; total: number; page: number; limit: number }> => {
+  const cacheKey = `customers:list:${String(search)}:${page}:${limit}`;
+  const cached   = await get<{ customers: CustomerItem[]; total: number; page: number; limit: number }>(cacheKey);
+  if (cached) return cached;
+
   const skip  = (page - 1) * limit;
   const where = search ? {
     OR: [
@@ -33,7 +40,9 @@ export const getAll = async (
     prisma.customer.count({ where }),
   ]);
 
-  return { customers, total, page, limit };
+  const result = { customers, total, page, limit };
+  await set(cacheKey, result, CACHE_TTL);
+  return result;
 };
 
 export const getById = async (id: number) =>
@@ -68,7 +77,9 @@ export const create = async (data: {
     const existing = await prisma.customer.findUnique({ where: { email: data.email } });
     if (existing) throw new Error('EMAIL_TAKEN');
   }
-  return prisma.customer.create({ data, select: SELECT });
+  const customer = await prisma.customer.create({ data, select: SELECT });
+  await invalidate('customers:');
+  return customer;
 };
 
 export const update = async (id: number, data: {
@@ -78,11 +89,14 @@ export const update = async (id: number, data: {
     const existing = await prisma.customer.findUnique({ where: { email: data.email } });
     if (existing && existing.id !== id) throw new Error('EMAIL_TAKEN');
   }
-  return prisma.customer.update({ where: { id }, data, select: SELECT });
+  const customer = await prisma.customer.update({ where: { id }, data, select: SELECT });
+  await invalidate('customers:');
+  return customer;
 };
 
 export const remove = async (id: number): Promise<void> => {
   // Detach orders before deleting
   await prisma.order.updateMany({ where: { customerId: id }, data: { customerId: null } });
   await prisma.customer.delete({ where: { id } });
+  await invalidate('customers:');
 };
