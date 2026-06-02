@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'config/routes/app_router.dart';
 import 'config/themes/app_theme.dart';
 import 'core/constants/app_constants.dart';
+import 'core/services/fcm_service.dart';
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
 
@@ -54,6 +56,8 @@ class LocaleNotifier extends StateNotifier<Locale> {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  await FcmService.instance.init();
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,

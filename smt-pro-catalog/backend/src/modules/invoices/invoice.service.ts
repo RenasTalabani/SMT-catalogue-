@@ -2,6 +2,7 @@ import prisma from '../../config/prisma';
 import { generateInvoicePDF } from '../../services/pdf.service';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
+import { createNotification } from '../notifications/notification.service';
 
 const BUCKET = 'invoices';
 
@@ -134,6 +135,15 @@ export const createFromOrder = async (
       },
     },
     include: { items: true, createdBy: { select: { name: true } } },
+  });
+
+  // Notify the employee who created the invoice
+  void createNotification({
+    userId: createdById,
+    title:  '🧾 Invoice Generated',
+    body:   `${invoiceNumber} — $${total.toFixed(2)} for Order #${orderId}`,
+    type:   'invoice',
+    data:   { invoiceId: invoice.id, invoiceNumber, total },
   });
 
   return { invoice, pdfBuffer };

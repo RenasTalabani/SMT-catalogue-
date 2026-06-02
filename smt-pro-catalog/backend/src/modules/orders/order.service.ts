@@ -3,6 +3,7 @@ import { getIO } from '../../config/socket';
 import { invalidate } from '../../shared/utils/cache.util';
 import { audit } from '../../shared/middlewares/audit.middleware';
 import { JwtPayload } from '../../types';
+import { broadcastToAdmins } from '../notifications/notification.service';
 
 const ORDER_SELECT = {
   id: true, totalAmount: true, finalAmount: true, discount: true,
@@ -105,6 +106,13 @@ export const create = async (userId: number, input: CreateOrderInput) => {
 
   await invalidate('products:');
   getIO()?.to('all').emit('order:created', { id: order.id, totalAmount, finalAmount, userId, itemCount: items.length });
+
+  void broadcastToAdmins(
+    '🛒 New Order',
+    `Order #${order.id} — $${finalAmount.toFixed(2)} (${items.length} item${items.length !== 1 ? 's' : ''})`,
+    'order',
+    { orderId: order.id, finalAmount, paymentMethod },
+  );
 
   // Track discount usage for employee monitoring
   if (discount > 0) {

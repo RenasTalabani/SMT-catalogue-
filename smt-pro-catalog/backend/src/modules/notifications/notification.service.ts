@@ -73,3 +73,16 @@ export const markAllAsRead = (userId: number) =>
 
 export const getUnreadCount = (userId: number) =>
   prisma.notification.count({ where: { userId, isRead: false } });
+
+// Send to all admin + super_admin users
+export const broadcastToAdmins = async (
+  title: string, body: string, type = 'info', data?: Record<string, unknown>,
+): Promise<void> => {
+  const admins = await prisma.user.findMany({
+    where:  { role: { in: ['admin', 'super_admin'] }, isActive: true },
+    select: { id: true },
+  });
+  await Promise.allSettled(
+    admins.map((a) => createNotification({ userId: a.id, title, body, type, data })),
+  );
+};

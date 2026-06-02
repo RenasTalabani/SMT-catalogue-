@@ -1,6 +1,7 @@
 import prisma from '../../config/prisma';
 import { getIO } from '../../config/socket';
 import { invalidate } from '../../shared/utils/cache.util';
+import { broadcastToAdmins } from '../notifications/notification.service';
 
 const MOVEMENT_SELECT = {
   id: true, type: true, quantity: true, previousQty: true,
@@ -49,6 +50,22 @@ export const recordMovement = async (employeeId: number, { productId, type, quan
 
   await invalidate('products:');
   getIO()?.to('all').emit('stock:updated', { productId, newQty, type });
+
+  // Notify admins if product falls below low stock threshold
+  const updated = await prisma.product.findUnique({
+    where:  { id: productId },
+    select: { name: true, quantity: true, lowStockAlert: true },
+  });
+  if (updated && updated.quantity <= updated.lowStockAlert) {
+    getIO()?.to('admin').emit('stock:low', { productId, name: updated.name, quantity: updated.quantity });
+    void broadcastToAdmins(
+      '⚠️ Low Stock Alert',
+      `${updated.name} — only ${updated.quantity} unit${updated.quantity !== 1 ? 's' : ''} remaining`,
+      'warning',
+      { productId, quantity: updated.quantity },
+    );
+  }
+
   return movement;
 };
 
