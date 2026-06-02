@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "17990596547",
+    "project_id": "daraliraq",
+    "storage_bucket": "daraliraq.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:17990596547:android:f38664619d9914f550ef76",
+        "android_client_info": {
+          "package_name": "com.daraliraq.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDAPvICqg0P-006QHxly9lW_9PEKn06yTA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
