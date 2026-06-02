@@ -7,7 +7,7 @@ import { validateStockMovement, validateSupplier } from './inventory.validation'
 
 const router = Router();
 
-router.use(protect as RequestHandler, restrictTo('admin', 'employee') as RequestHandler);
+router.use(protect as RequestHandler, restrictTo('super_admin', 'admin', 'employee') as RequestHandler);
 
 router.get('/movements',  inventoryController.getMovements as unknown as RequestHandler);
 router.post('/movements',
@@ -20,19 +20,19 @@ router.get('/value', inventoryController.getInventoryValue as unknown as Request
 
 router.get('/suppliers', inventoryController.getSuppliers as unknown as RequestHandler);
 router.post('/suppliers',
-  restrictTo('admin') as RequestHandler,
+  restrictTo('super_admin', 'admin') as RequestHandler,
   validateSupplier,
   auditMiddleware('CREATE', 'Supplier') as RequestHandler,
   inventoryController.createSupplier as unknown as RequestHandler,
 );
 router.put('/suppliers/:id',
-  restrictTo('admin') as RequestHandler,
+  restrictTo('super_admin', 'admin') as RequestHandler,
   validateSupplier,
   auditMiddleware('UPDATE', 'Supplier') as RequestHandler,
   inventoryController.updateSupplier as unknown as RequestHandler,
 );
 router.delete('/suppliers/:id',
-  restrictTo('admin') as RequestHandler,
+  restrictTo('super_admin', 'admin') as RequestHandler,
   auditMiddleware('DELETE', 'Supplier') as RequestHandler,
   inventoryController.deleteSupplier as unknown as RequestHandler,
 );
