@@ -168,13 +168,26 @@ export const getCategoryBreakdown = async () => {
   return result;
 };
 
-export const getAuditLogs = async ({ entity, action, userId, page = 1, limit = 50 }: {
-  entity?: string; action?: string; userId?: string; page?: string | number; limit?: string | number;
+export const getAuditLogs = async ({
+  entity, action, userId, search, from, to, page = 1, limit = 50,
+}: {
+  entity?: string; action?: string; userId?: string; search?: string;
+  from?: string; to?: string;
+  page?: string | number; limit?: string | number;
 } = {}) => {
   const where: Record<string, unknown> = {};
   if (entity) where['entity'] = entity;
   if (action) where['action'] = action;
   if (userId) where['userId'] = parseInt(String(userId));
+  if (from || to) {
+    const createdAt: Record<string, Date> = {};
+    if (from) createdAt['gte'] = new Date(from);
+    if (to)   createdAt['lte'] = new Date(new Date(to).setHours(23, 59, 59, 999));
+    where['createdAt'] = createdAt;
+  }
+  if (search) {
+    where['user'] = { name: { contains: search, mode: 'insensitive' } };
+  }
 
   const skip = (parseInt(String(page)) - 1) * parseInt(String(limit));
   const take = parseInt(String(limit));
@@ -184,7 +197,7 @@ export const getAuditLogs = async ({ entity, action, userId, page = 1, limit = 5
       where, orderBy: { createdAt: 'desc' }, skip, take,
       select: {
         id: true, action: true, entity: true, entityId: true,
-        metadata: true, createdAt: true,
+        metadata: true, ipAddress: true, createdAt: true,
         user: { select: { id: true, name: true, role: true } },
       },
     }),
@@ -192,4 +205,30 @@ export const getAuditLogs = async ({ entity, action, userId, page = 1, limit = 5
   ]);
 
   return { logs, total, page: parseInt(String(page)), limit: take };
+};
+
+export const exportAuditLogs = async ({
+  entity, action, userId, from, to,
+}: {
+  entity?: string; action?: string; userId?: string; from?: string; to?: string;
+} = {}) => {
+  const where: Record<string, unknown> = {};
+  if (entity) where['entity'] = entity;
+  if (action) where['action'] = action;
+  if (userId) where['userId'] = parseInt(String(userId));
+  if (from || to) {
+    const createdAt: Record<string, Date> = {};
+    if (from) createdAt['gte'] = new Date(from);
+    if (to)   createdAt['lte'] = new Date(new Date(to).setHours(23, 59, 59, 999));
+    where['createdAt'] = createdAt;
+  }
+
+  return prisma.auditLog.findMany({
+    where, orderBy: { createdAt: 'desc' }, take: 5000,
+    select: {
+      id: true, action: true, entity: true, entityId: true,
+      metadata: true, ipAddress: true, createdAt: true,
+      user: { select: { id: true, name: true, role: true } },
+    },
+  });
 };

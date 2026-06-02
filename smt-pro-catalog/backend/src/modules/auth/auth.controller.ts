@@ -3,6 +3,7 @@ import * as authService from './auth.service';
 import { success, error } from '../../shared/utils/response.util';
 import { AuthRequest } from '../../types';
 import prisma from '../../config/prisma';
+import { audit } from '../../shared/middlewares/audit.middleware';
 
 const ERR: Record<string, { s: number; m: string }> = {
   EMAIL_TAKEN:         { s: 409, m: 'This email is already registered' },
@@ -17,6 +18,7 @@ const resolve = (e: Error, res: Response, fallback: string): Response => {
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await authService.register(req.body as { name: string; email: string; password: string });
+    void audit(result.user.id, 'REGISTER', 'User', result.user.id, { email: result.user.email });
     success(res, result, 'Account created successfully', 201);
   } catch (e) { resolve(e as Error, res, 'Registration failed'); }
 };
@@ -24,6 +26,10 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await authService.login(req.body as { email: string; password: string });
+    void audit(result.user.id, 'LOGIN', 'User', result.user.id, {
+      ip:        req.ip ?? req.socket?.remoteAddress,
+      userAgent: req.headers['user-agent'],
+    });
     success(res, result, 'Login successful');
   } catch (e) { resolve(e as Error, res, 'Login failed'); }
 };
