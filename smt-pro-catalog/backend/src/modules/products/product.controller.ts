@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { Prisma } from '@prisma/client';
 import * as productService from './product.service';
 import { success, error } from '../../shared/utils/response.util';
 
@@ -7,6 +8,10 @@ const ERR_MAP: Record<string, { s: number; m: string }> = {
 };
 
 const resolve = (e: Error, res: Response): Response => {
+  if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+    const fields = (e.meta?.target as string[] | undefined)?.join(', ') ?? 'field';
+    return error(res, `A product with this ${fields} already exists`, 409);
+  }
   const m = ERR_MAP[e.message];
   return error(res, m?.m ?? e.message, m?.s ?? 500);
 };
