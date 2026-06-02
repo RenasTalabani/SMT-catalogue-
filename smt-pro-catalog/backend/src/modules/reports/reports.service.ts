@@ -232,3 +232,87 @@ export const exportAuditLogs = async ({
     },
   });
 };
+
+export const getEmployeePerformance = async ({
+  from, to, month,
+}: { from?: string; to?: string; month?: string } = {}) => {
+  const cacheKey = `reports:employee-perf:${String(from)}:${String(to)}:${String(month)}`;
+  const cached   = await get<unknown>(cacheKey);
+  if (cached) return cached;
+
+  // Build date range
+  let startDate: Date | undefined;
+  let endDate:   Date | undefined;
+
+  if (month) {
+    // month format: YYYY-MM
+    startDate = new Date(`${month}-01T00:00:00.000Z`);
+    endDate   = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0, 23, 59, 59, 999);
+  } else if (from || to) {
+    if (from) startDate = new Date(from);
+    if (to)   endDate   = new Date(new Date(to).setHours(23, 59, 59, 999));
+  } else {
+    // Default: current month
+    const now = new Date();
+    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    endDate   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  }
+
+  const dateWhere = startDate || endDate
+    ? { createdAt: { ...(startDate ? { gte: startDate } : {}), ...(endDate ? { lte: endDate } : {}) } }
+    : {};
+
+  // Get all employees + admins
+  const employees = await prisma.user.findMany({
+    where:  { role: { in: ['employee', 'admin', 'super_admin'] }, isActive: true },
+    select: { id: true, name: true, role: true },
+  });
+
+  const results = await Promise.all(employees.map(async (emp) => {
+    const [orders, invoices, discountLogs] = await Promise.all([
+      // Orders created by this employee
+      prisma.order.findMany({
+        where:  { userId: emp.id, ...dateWhere },
+        select: { id: true, finalAmount: true, discount: true, status: true, createdAt: true },
+      }),
+      // Invoices created by this employee
+      prisma.invoice.count({ where: { createdById: emp.id, ...dateWhere } }),
+      // Discount usage from audit logs
+      prisma.auditLog.findMany({
+        where:  { userId: emp.id, action: 'DISCOUNT', ...dateWhere },
+        select: { metadata: true, createdAt: true },
+      }),
+    ]);
+
+    const completedOrders   = orders.filter((o) => o.status === 'COMPLETED');
+    const totalSales        = completedOrders.reduce((s, o) => s + (o.finalAmount ?? 0), 0);
+    const totalOrders       = orders.length;
+    const totalDiscount     = orders.reduce((s, o) => s + (o.discount ?? 0), 0);
+    const avgOrderValue     = completedOrders.length > 0 ? totalSales / completedOrders.length : 0;
+    const discountUsage     = discountLogs.length;
+    const totalDiscountAmt  = discountLogs.reduce((s, d) => {
+      const meta = d.metadata as Record<string, unknown> | null;
+      return s + (Number(meta?.['discountAmount'] ?? 0));
+    }, 0);
+
+    return {
+      id:             emp.id,
+      name:           emp.name,
+      role:           emp.role,
+      totalOrders,
+      completedOrders: completedOrders.length,
+      totalSales:     parseFloat(totalSales.toFixed(2)),
+      avgOrderValue:  parseFloat(avgOrderValue.toFixed(2)),
+      totalDiscount:  parseFloat(totalDiscount.toFixed(2)),
+      invoicesCreated: invoices,
+      discountUsage,
+      totalDiscountAmt: parseFloat(totalDiscountAmt.toFixed(2)),
+    };
+  }));
+
+  // Sort by total sales descending
+  const sorted = results.sort((a, b) => b.totalSales - a.totalSales);
+  const result = { employees: sorted, period: { from: startDate, to: endDate } };
+  await set(cacheKey, result, 60);
+  return result;
+};

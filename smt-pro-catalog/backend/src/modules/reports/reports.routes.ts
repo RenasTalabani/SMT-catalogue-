@@ -11,7 +11,8 @@ router.get('/dashboard',          reportsController.getDashboard as RequestHandl
 router.get('/sales',              reportsController.getSalesAnalytics as RequestHandler);
 router.get('/top-products',       reportsController.getTopProducts as RequestHandler);
 router.get('/category-breakdown', reportsController.getCategoryBreakdown as RequestHandler);
-router.get('/audit',              restrictTo('super_admin', 'admin') as RequestHandler, reportsController.getAuditLogs     as RequestHandler);
-router.get('/audit/export',       restrictTo('super_admin', 'admin') as RequestHandler, reportsController.exportAuditCsv   as RequestHandler);
+router.get('/audit',              restrictTo('super_admin', 'admin') as RequestHandler, reportsController.getAuditLogs          as RequestHandler);
+router.get('/audit/export',       restrictTo('super_admin', 'admin') as RequestHandler, reportsController.exportAuditCsv        as RequestHandler);
+router.get('/employee-performance', restrictTo('super_admin', 'admin') as RequestHandler, reportsController.getEmployeePerformance as RequestHandler);
 
 export default router;

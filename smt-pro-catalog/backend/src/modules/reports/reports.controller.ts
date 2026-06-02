@@ -29,6 +29,11 @@ export const getAuditLogs = async (req: Request, res: Response): Promise<void> =
   catch (e) { resolve(e as Error, res); }
 };
 
+export const getEmployeePerformance = async (req: Request, res: Response): Promise<void> => {
+  try { success(res, await reportsService.getEmployeePerformance(req.query as Record<string, string>)); }
+  catch (e) { resolve(e as Error, res); }
+};
+
 export const exportAuditCsv = async (req: Request, res: Response): Promise<void> => {
   try {
     const logs = await reportsService.exportAuditLogs(req.query as Record<string, string>);

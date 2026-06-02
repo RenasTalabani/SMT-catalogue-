@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Package, ShoppingCart, Warehouse,
   TrendingUp, BarChart3, Settings, LogOut, Package2, Tag, X,
-  FileText, Store, Users, ShieldCheck, UserCheck, ClipboardList, Truck, BellRing,
+  FileText, Store, Users, ShieldCheck, UserCheck, ClipboardList, Truck, BellRing, BarChart2,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore } from '@/store/auth.store';
@@ -26,8 +26,9 @@ const nav: NavItem[] = [
   { href: '/suppliers',    label: 'Suppliers',    icon: Truck },
   { href: '/inventory',    label: 'Inventory',    icon: Warehouse },
   { href: '/stock-alerts', label: 'Stock Alerts', icon: BellRing },
-  { href: '/finance',    label: 'Finance',    icon: TrendingUp,  roles: ['super_admin', 'admin'] },
-  { href: '/reports',    label: 'Reports',    icon: BarChart3,   roles: ['super_admin', 'admin'] },
+  { href: '/finance',      label: 'Finance',      icon: TrendingUp,  roles: ['super_admin', 'admin'] },
+  { href: '/reports',      label: 'Reports',      icon: BarChart3,   roles: ['super_admin', 'admin'] },
+  { href: '/performance',  label: 'Performance',  icon: BarChart2,   roles: ['super_admin', 'admin'] },
   { href: '/users',      label: 'Users',      icon: Users,         roles: ['super_admin', 'admin'] },
   { href: '/roles',      label: 'Roles',      icon: ShieldCheck,   roles: ['super_admin', 'admin'] },
   { href: '/audit',      label: 'Audit Logs', icon: ClipboardList, roles: ['super_admin', 'admin'] },

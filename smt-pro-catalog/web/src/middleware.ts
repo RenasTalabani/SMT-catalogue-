@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // Routes that only admin+ can access
-const ADMIN_ROUTES = ['/finance', '/reports', '/users', '/roles', '/audit'];
+const ADMIN_ROUTES = ['/finance', '/reports', '/users', '/roles', '/audit', '/performance'];
 
 // Routes that only super_admin can access
 const SUPER_ADMIN_ROUTES = ['/users', '/roles'];
