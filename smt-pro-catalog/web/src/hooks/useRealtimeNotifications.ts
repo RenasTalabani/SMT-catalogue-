@@ -36,4 +36,13 @@ export function useRealtimeNotifications() {
       toast(n.message, { icon: '🔔', duration: 5000 });
     }
   });
+
+  useSocket(SocketEvent.discountHigh, (data: unknown) => {
+    const d = data as { orderId?: number; discountPct?: number };
+    toast(`High discount alert: Order #${d?.orderId ?? ''} — ${d?.discountPct ?? 0}% off`, {
+      icon: '🚨',
+      duration: 8000,
+      style: { background: '#1A1A2E', color: '#F87171', border: '1px solid #F8717144' },
+    });
+  });
 }

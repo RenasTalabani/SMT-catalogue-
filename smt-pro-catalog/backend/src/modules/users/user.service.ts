@@ -67,6 +67,12 @@ export const deleteUser = async (id: number): Promise<void> => {
   await prisma.user.delete({ where: { id } });
 };
 
+export const resetPassword = async (id: number, newPassword: string): Promise<void> => {
+  if (newPassword.length < 8) throw new Error('PASSWORD_TOO_SHORT');
+  const hashed = await bcrypt.hash(newPassword, 12);
+  await prisma.user.update({ where: { id }, data: { password: hashed } });
+};
+
 export const getRoleCounts = async (): Promise<Record<string, number>> => {
   const rows = await prisma.user.groupBy({ by: ['role'], _count: { role: true } });
   return Object.fromEntries(rows.map((r) => [r.role, r._count.role]));

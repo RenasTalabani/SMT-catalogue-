@@ -10,7 +10,7 @@ const router = Router();
 router.use(protect as RequestHandler);
 
 router.get('/my', orderController.getMyOrders as unknown as RequestHandler);
-router.get('/',    restrictTo('admin', 'employee') as RequestHandler, orderController.getAll as unknown as RequestHandler);
+router.get('/',    restrictTo('super_admin', 'admin', 'employee') as RequestHandler, orderController.getAll as unknown as RequestHandler);
 router.get('/:id', orderController.getById as unknown as RequestHandler);
 
 router.post('/',
@@ -20,7 +20,7 @@ router.post('/',
 );
 
 router.patch('/:id/status',
-  restrictTo('admin', 'employee') as RequestHandler,
+  restrictTo('super_admin', 'admin', 'employee') as RequestHandler,
   validateStatusUpdate,
   auditMiddleware('UPDATE', 'Order') as RequestHandler,
   orderController.updateStatus as unknown as RequestHandler,

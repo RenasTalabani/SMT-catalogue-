@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Users, Search, UserPlus, Shield, ShieldCheck, ShieldOff,
-  Trash2, ToggleLeft, ToggleRight, ChevronDown,
+  Trash2, ToggleLeft, ToggleRight, ChevronDown, KeyRound,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
@@ -41,8 +41,10 @@ export default function UsersPage() {
 
   const [search, setSearch]     = useState('');
   const [page, setPage]         = useState(1);
-  const [showCreate, setCreate] = useState(false);
-  const [form, setForm]         = useState({ name: '', email: '', password: '', role: 'employee' });
+  const [showCreate, setCreate]       = useState(false);
+  const [resetUserId, setResetUserId] = useState<number | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [form, setForm]               = useState({ name: '', email: '', password: '', role: 'employee' });
 
   const isSuperAdmin = me?.role === 'super_admin';
 
@@ -73,6 +75,13 @@ export default function UsersPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.delete(`/users/${id}`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); toast.success('User deleted'); },
+    onError:   (e: Error) => toast.error(e.message),
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: ({ id, password }: { id: number; password: string }) =>
+      api.put(`/users/${id}/password`, { password }).then((r) => r.data),
+    onSuccess: () => { toast.success('Password reset successfully'); setResetUserId(null); setNewPassword(''); },
     onError:   (e: Error) => toast.error(e.message),
   });
 
@@ -131,6 +140,30 @@ export default function UsersPage() {
               <button type="button" disabled={createMutation.isPending}
                 onClick={() => createMutation.mutate()} className="btn-primary text-sm">
                 {createMutation.isPending ? 'Creating…' : 'Create User'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password modal */}
+      {resetUserId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="card w-full max-w-sm space-y-4 p-6">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <KeyRound size={18} className="text-primary" /> Reset Password
+            </h2>
+            <p className="text-sm text-[#94A3B8]">Enter a new password for this user (min 8 characters).</p>
+            <input className="input w-full" type="password" placeholder="New password"
+              value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+            <div className="flex gap-3 justify-end">
+              <button type="button" onClick={() => { setResetUserId(null); setNewPassword(''); }}
+                className="btn-secondary text-sm">Cancel</button>
+              <button type="button"
+                disabled={newPassword.length < 8 || resetPasswordMutation.isPending}
+                onClick={() => resetPasswordMutation.mutate({ id: resetUserId, password: newPassword })}
+                className="btn-primary text-sm disabled:opacity-40">
+                {resetPasswordMutation.isPending ? 'Saving…' : 'Reset Password'}
               </button>
             </div>
           </div>
@@ -257,6 +290,11 @@ export default function UsersPage() {
                     <td className="px-4 py-3">
                       {u.id !== me?.id && (
                         <div className="flex items-center gap-1 justify-end">
+                          <button type="button" title="Reset password"
+                            onClick={() => { setResetUserId(u.id); setNewPassword(''); }}
+                            className="p-1.5 rounded-lg hover:bg-dark-card text-[#94A3B8] hover:text-primary transition-colors">
+                            <KeyRound size={15} />
+                          </button>
                           <button type="button" title={u.isActive ? 'Deactivate user' : 'Activate user'}
                             onClick={() => activeMutation.mutate({ id: u.id, isActive: !u.isActive })}
                             className="p-1.5 rounded-lg hover:bg-dark-card text-[#94A3B8] hover:text-yellow-400 transition-colors">

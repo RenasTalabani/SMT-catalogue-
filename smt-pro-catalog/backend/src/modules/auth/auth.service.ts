@@ -32,6 +32,8 @@ export const login = async ({ email, password }: LoginInput): Promise<AuthResult
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) throw new Error('INVALID_CREDENTIALS');
   if (!(await bcrypt.compare(password, user.password))) throw new Error('INVALID_CREDENTIALS');
+  if (!user.isActive) throw new Error('ACCOUNT_DEACTIVATED');
+  await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   const { password: _, ...safeUser } = user;
   return { user: safeUser, token: signToken({ id: safeUser.id, role: safeUser.role }) };
 };

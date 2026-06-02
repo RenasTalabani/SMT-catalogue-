@@ -81,3 +81,16 @@ export const getRoleCounts = async (_req: AuthRequest, res: Response): Promise<v
   const counts = await userService.getRoleCounts();
   success(res, counts);
 };
+
+export const resetPassword = async (req: AuthRequest, res: Response): Promise<void> => {
+  const id = parseInt(req.params['id'] ?? '0');
+  const { password } = req.body as { password: string };
+  if (!password) { error(res, 'New password is required', 400); return; }
+  try {
+    await userService.resetPassword(id, password);
+    success(res, { message: 'Password reset successfully' });
+  } catch (e: unknown) {
+    if ((e as Error).message === 'PASSWORD_TOO_SHORT') { error(res, 'Password must be at least 8 characters', 400); return; }
+    throw e;
+  }
+};

@@ -46,4 +46,5 @@ export const SocketEvent = {
   stockUpdated:    'stock:updated',
   stockLow:        'stock:low',
   notificationNew: 'notification:new',
+  discountHigh:    'discount:high',
 } as const;

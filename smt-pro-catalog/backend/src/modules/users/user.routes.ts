@@ -47,6 +47,11 @@ router.put('/:id/active',
   auditMiddleware('UPDATE', 'User') as RequestHandler,
   userController.toggleActive as unknown as RequestHandler,
 );
+router.put('/:id/password',
+  restrictTo('super_admin', 'admin') as RequestHandler,
+  auditMiddleware('UPDATE', 'User') as RequestHandler,
+  userController.resetPassword as unknown as RequestHandler,
+);
 router.delete('/:id',
   restrictTo('super_admin') as RequestHandler,
   auditMiddleware('DELETE', 'User') as RequestHandler,

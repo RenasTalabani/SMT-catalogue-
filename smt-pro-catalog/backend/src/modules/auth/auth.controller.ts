@@ -8,6 +8,7 @@ import { audit } from '../../shared/middlewares/audit.middleware';
 const ERR: Record<string, { s: number; m: string }> = {
   EMAIL_TAKEN:         { s: 409, m: 'This email is already registered' },
   INVALID_CREDENTIALS: { s: 401, m: 'Invalid email or password' },
+  ACCOUNT_DEACTIVATED: { s: 403, m: 'Your account has been deactivated. Contact your administrator.' },
 };
 
 const resolve = (e: Error, res: Response, fallback: string): Response => {

@@ -1,6 +1,7 @@
 import prisma from '../../config/prisma';
 import { getIO } from '../../config/socket';
 import { invalidate } from '../../shared/utils/cache.util';
+import { audit } from '../../shared/middlewares/audit.middleware';
 import { JwtPayload } from '../../types';
 
 const ORDER_SELECT = {
@@ -104,6 +105,29 @@ export const create = async (userId: number, input: CreateOrderInput) => {
 
   await invalidate('products:');
   getIO()?.to('all').emit('order:created', { id: order.id, totalAmount, finalAmount, userId, itemCount: items.length });
+
+  // Track discount usage for employee monitoring
+  if (discount > 0) {
+    const discountPct = parseFloat(((discount / totalAmount) * 100).toFixed(2));
+    void audit(userId, 'DISCOUNT', 'Order', order.id, {
+      discountAmount:     discount,
+      discountPercentage: discountPct,
+      totalAmount,
+      finalAmount,
+      paymentMethod,
+    });
+    // Alert admin room if discount ≥ 10%
+    if (discountPct >= 10) {
+      getIO()?.to('admin').emit('discount:high', {
+        orderId:    order.id,
+        employeeId: userId,
+        discountPct,
+        discount,
+        totalAmount,
+      });
+    }
+  }
+
   return order;
 };
 
