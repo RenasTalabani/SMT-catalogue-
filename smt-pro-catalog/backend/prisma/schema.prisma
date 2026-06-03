@@ -33,6 +33,8 @@ model User {
   returnRequests    ReturnRequest[]  @relation("ReturnRequester")
   returnReviews     ReturnRequest[]  @relation("ReturnReviewer")
   couponUsages      CouponUsage[]    @relation("CouponUser")
+  stocktakesCreated Stocktake[]      @relation("StocktakeCreator")
+  stocktakesReviewed Stocktake[]     @relation("StocktakeReviewer")
 
   @@index([email])
   @@index([role])
@@ -89,6 +91,7 @@ model Product {
   stockMovements     StockMovement[]
   purchaseOrderItems PurchaseOrderItem[]
   returnItems        ReturnItem[]
+  stocktakeItems     StocktakeItem[]
 
   @@index([categoryId])
   @@index([category])
@@ -469,11 +472,90 @@ model Customer {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  orders Order[]
+  orders        Order[]
+  loyaltyAccount LoyaltyAccount?
 
   @@index([name])
   @@index([phone])
   @@index([email])
   @@index([createdAt])
   @@index([deletedAt])
+}
+
+// ─── Customer Loyalty ─────────────────────────────────────────────────────────
+
+model LoyaltyAccount {
+  id             Int      @id @default(autoincrement())
+  customerId     Int      @unique
+  points         Int      @default(0)
+  lifetimePoints Int      @default(0)
+  tier           String   @default("BRONZE")   // BRONZE, SILVER, GOLD, PLATINUM
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  customer     Customer             @relation(fields: [customerId], references: [id])
+  transactions LoyaltyTransaction[]
+
+  @@index([customerId])
+  @@index([tier])
+  @@index([points])
+}
+
+model LoyaltyTransaction {
+  id          Int      @id @default(autoincrement())
+  accountId   Int
+  type        String                // EARN, REDEEM, ADJUST, EXPIRE
+  points      Int
+  balance     Int
+  orderId     Int?
+  reference   String?
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  account LoyaltyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([type])
+  @@index([createdAt])
+  @@index([orderId])
+}
+
+// ─── Stocktake / Cycle Count ──────────────────────────────────────────────────
+
+model Stocktake {
+  id          Int      @id @default(autoincrement())
+  reference   String   @unique
+  status      String   @default("DRAFT")   // DRAFT, IN_PROGRESS, COMPLETED, CANCELLED
+  notes       String?  @db.Text
+  createdById Int
+  reviewedById Int?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy  User            @relation("StocktakeCreator",  fields: [createdById],  references: [id])
+  reviewedBy User?           @relation("StocktakeReviewer", fields: [reviewedById], references: [id])
+  items      StocktakeItem[]
+
+  @@index([status])
+  @@index([createdById])
+  @@index([createdAt])
+}
+
+model StocktakeItem {
+  id           Int     @id @default(autoincrement())
+  stocktakeId  Int
+  productId    Int
+  expectedQty  Int
+  countedQty   Int?
+  variance     Int?
+  notes        String?
+
+  stocktake Stocktake @relation(fields: [stocktakeId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id])
+
+  @@unique([stocktakeId, productId])
+  @@index([stocktakeId])
+  @@index([productId])
 }
