@@ -33,9 +33,10 @@ model User {
   returnRequests    ReturnRequest[]  @relation("ReturnRequester")
   returnReviews     ReturnRequest[]  @relation("ReturnReviewer")
   couponUsages      CouponUsage[]    @relation("CouponUser")
-  stocktakesCreated  Stocktake[]      @relation("StocktakeCreator")
-  stocktakesReviewed Stocktake[]     @relation("StocktakeReviewer")
-  shifts             Shift[]         @relation("ShiftEmployee")
+  stocktakesCreated  Stocktake[]       @relation("StocktakeCreator")
+  stocktakesReviewed Stocktake[]      @relation("StocktakeReviewer")
+  shifts             Shift[]          @relation("ShiftEmployee")
+  backorderRequests  BackorderRequest[] @relation("BackorderRequester")
 
   @@index([email])
   @@index([role])
@@ -96,6 +97,8 @@ model Product {
   priceListItems     PriceListItem[]
   bundleItems        BundleItem[]
   tags               ProductTag[]
+  supplierProducts   SupplierProduct[]
+  backorders         BackorderRequest[]
 
   @@index([categoryId])
   @@index([category])
@@ -283,9 +286,10 @@ model Supplier {
   notes          String?         @db.Text
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
-  deletedAt      DateTime?
-  stockMovements StockMovement[]
-  purchaseOrders PurchaseOrder[]
+  deletedAt         DateTime?
+  stockMovements    StockMovement[]
+  purchaseOrders    PurchaseOrder[]
+  supplierProducts  SupplierProduct[]
 
   @@index([name])
   @@index([deletedAt])
@@ -480,7 +484,8 @@ model Customer {
 
   orders         Order[]
   loyaltyAccount LoyaltyAccount?
-  priceList      PriceList?      @relation("CustomerPriceList", fields: [priceListId], references: [id])
+  priceList      PriceList?       @relation("CustomerPriceList", fields: [priceListId], references: [id])
+  backorders     BackorderRequest[]
 
   @@index([name])
   @@index([phone])
@@ -712,4 +717,56 @@ model ShiftOrder {
   @@id([shiftId, orderId])
   @@index([shiftId])
   @@index([orderId])
+}
+
+// ─── Supplier Product Catalog ─────────────────────────────────────────────────
+
+model SupplierProduct {
+  id            Int      @id @default(autoincrement())
+  supplierId    Int
+  productId     Int
+  supplierSku   String?
+  unitCost      Float
+  leadTimeDays  Int      @default(0)
+  minOrderQty   Int      @default(1)
+  packSize      Int      @default(1)   // units per pack/reel
+  isPreferred   Boolean  @default(false)
+  notes         String?
+  lastUpdated   DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId],  references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, productId])
+  @@index([supplierId])
+  @@index([productId])
+  @@index([isPreferred])
+  @@index([unitCost])
+}
+
+// ─── Backorders / Waitlist ────────────────────────────────────────────────────
+
+model BackorderRequest {
+  id          Int      @id @default(autoincrement())
+  productId   Int
+  customerId  Int?
+  requestedBy Int
+  quantity    Int
+  status      String   @default("PENDING")   // PENDING, PARTIALLY_FULFILLED, FULFILLED, CANCELLED
+  notes       String?
+  notifiedAt  DateTime?
+  fulfilledAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product    Product   @relation(fields: [productId],   references: [id])
+  customer   Customer? @relation(fields: [customerId],  references: [id])
+  requester  User      @relation("BackorderRequester", fields: [requestedBy], references: [id])
+
+  @@index([productId])
+  @@index([customerId])
+  @@index([requestedBy])
+  @@index([status])
+  @@index([createdAt])
 }

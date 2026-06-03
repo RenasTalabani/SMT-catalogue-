@@ -2,6 +2,7 @@ import prisma from '../../config/prisma';
 import { getIO } from '../../config/socket';
 import { invalidate } from '../../shared/utils/cache.util';
 import { broadcastToAdmins } from '../notifications/notification.service';
+import { fulfillForProduct } from '../backorders/backorder.service';
 
 export type POStatus = 'DRAFT' | 'SENT' | 'PARTIAL' | 'RECEIVED' | 'CANCELLED';
 
@@ -239,6 +240,12 @@ export const receiveItems = async (
 
   await invalidate('products:');
   getIO()?.to('all').emit('po:received', { id, status: newStatus, poNumber: po.poNumber });
+
+  // Auto-fulfill any pending backorders for received products
+  for (const u of updates) {
+    const product = await prisma.product.findUnique({ where: { id: u.productId }, select: { quantity: true } });
+    if (product) void fulfillForProduct(u.productId, product.quantity);
+  }
 
   if (allReceived) {
     void broadcastToAdmins(
