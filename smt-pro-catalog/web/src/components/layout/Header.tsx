@@ -6,6 +6,7 @@ import { fetcher } from '@/lib/api';
 import { useSocket } from '@/hooks/useSocket';
 import { SocketEvent } from '@/lib/socket';
 import NotificationPanel from './NotificationPanel';
+import GlobalSearch from '@/components/ui/GlobalSearch';
 
 export default function Header({ title }: { title: string }) {
   const qc = useQueryClient();
@@ -26,6 +27,7 @@ export default function Header({ title }: { title: string }) {
       <h1 className="text-lg font-semibold text-white">{title}</h1>
 
       <div className="flex items-center gap-3">
+        <GlobalSearch />
         <button
           type="button"
           title="Notifications"
