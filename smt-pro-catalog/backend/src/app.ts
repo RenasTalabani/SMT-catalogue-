@@ -29,6 +29,8 @@ import returnRoutes        from './modules/returns/return.routes';
 import couponRoutes        from './modules/coupons/coupon.routes';
 import loyaltyRoutes       from './modules/loyalty/loyalty.routes';
 import stocktakeRoutes     from './modules/stocktakes/stocktake.routes';
+import priceListRoutes     from './modules/price-lists/price-list.routes';
+import bundleRoutes        from './modules/bundles/bundle.routes';
 
 const app = express();
 const isProd = process.env['NODE_ENV'] === 'production';
@@ -106,6 +108,8 @@ app.use('/api/returns',         returnRoutes);
 app.use('/api/coupons',         couponRoutes);
 app.use('/api/loyalty',         loyaltyRoutes);
 app.use('/api/stocktakes',      stocktakeRoutes);
+app.use('/api/price-lists',     priceListRoutes);
+app.use('/api/bundles',         bundleRoutes);
 
 // ─── Sentry error capture (must be before error handler) ─────────────────────
 Sentry.setupExpressErrorHandler(app);

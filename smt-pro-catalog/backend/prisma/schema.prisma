@@ -92,6 +92,8 @@ model Product {
   purchaseOrderItems PurchaseOrderItem[]
   returnItems        ReturnItem[]
   stocktakeItems     StocktakeItem[]
+  priceListItems     PriceListItem[]
+  bundleItems        BundleItem[]
 
   @@index([categoryId])
   @@index([category])
@@ -462,18 +464,20 @@ model PurchaseOrderItem {
 // ─── Customers ────────────────────────────────────────────────────────────────
 
 model Customer {
-  id        Int       @id @default(autoincrement())
-  name      String
-  phone     String?
-  email     String?   @unique
-  address   String?   @db.Text
-  notes     String?   @db.Text
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  id          Int       @id @default(autoincrement())
+  name        String
+  phone       String?
+  email       String?   @unique
+  address     String?   @db.Text
+  notes       String?   @db.Text
+  priceListId Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
 
-  orders        Order[]
+  orders         Order[]
   loyaltyAccount LoyaltyAccount?
+  priceList      PriceList?      @relation("CustomerPriceList", fields: [priceListId], references: [id])
 
   @@index([name])
   @@index([phone])
@@ -557,5 +561,73 @@ model StocktakeItem {
 
   @@unique([stocktakeId, productId])
   @@index([stocktakeId])
+  @@index([productId])
+}
+
+// ─── Price Lists ──────────────────────────────────────────────────────────────
+
+model PriceList {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  type        String   @default("CUSTOM")   // RETAIL, WHOLESALE, VIP, CUSTOM
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items     PriceListItem[]
+  customers Customer[]      @relation("CustomerPriceList")
+
+  @@index([type])
+  @@index([isDefault])
+  @@index([isActive])
+}
+
+model PriceListItem {
+  id          Int   @id @default(autoincrement())
+  priceListId Int
+  productId   Int
+  price       Float
+  discount    Float @default(0)   // percentage off the listed price
+
+  priceList PriceList @relation(fields: [priceListId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId],   references: [id])
+
+  @@unique([priceListId, productId])
+  @@index([priceListId])
+  @@index([productId])
+}
+
+// ─── Product Bundles / Kits ───────────────────────────────────────────────────
+
+model Bundle {
+  id               Int      @id @default(autoincrement())
+  name             String
+  description      String?  @db.Text
+  imageUrl         String?
+  price            Float
+  compareAtPrice   Float?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  items BundleItem[]
+
+  @@index([isActive])
+  @@index([createdAt])
+}
+
+model BundleItem {
+  id        Int   @id @default(autoincrement())
+  bundleId  Int
+  productId Int
+  quantity  Int   @default(1)
+
+  bundle  Bundle  @relation(fields: [bundleId],  references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([bundleId, productId])
+  @@index([bundleId])
   @@index([productId])
 }
