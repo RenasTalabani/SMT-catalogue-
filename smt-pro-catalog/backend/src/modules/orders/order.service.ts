@@ -5,6 +5,7 @@ import { audit } from '../../shared/middlewares/audit.middleware';
 import { JwtPayload } from '../../types';
 import { broadcastToAdmins } from '../notifications/notification.service';
 import { sendLowStockAlert } from '../../services/email.service';
+import { fire as fireWebhook } from '../webhooks/webhook.service';
 
 const ORDER_SELECT = {
   id: true, totalAmount: true, finalAmount: true, discount: true,
@@ -107,6 +108,7 @@ export const create = async (userId: number, input: CreateOrderInput) => {
 
   await invalidate('products:');
   getIO()?.to('all').emit('order:created', { id: order.id, totalAmount, finalAmount, userId, itemCount: items.length });
+  void fireWebhook('order.created', { id: order.id, totalAmount, finalAmount, status: 'PENDING', itemCount: items.length });
 
   void broadcastToAdmins(
     '🛒 New Order',
@@ -177,5 +179,7 @@ export const updateStatus = async (id: string | number, status: string) => {
   }
 
   getIO()?.to('all').emit('order:updated', { id: order.id, status });
+  if (status === 'COMPLETED') void fireWebhook('order.completed', { id: order.id, status });
+  if (status === 'CANCELLED') void fireWebhook('order.cancelled', { id: order.id, status });
   return order;
 };

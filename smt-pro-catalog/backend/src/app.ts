@@ -35,6 +35,8 @@ import tagRoutes              from './modules/tags/tag.routes';
 import shiftRoutes            from './modules/shifts/shift.routes';
 import supplierProductRoutes  from './modules/supplier-products/supplier-product.routes';
 import backorderRoutes        from './modules/backorders/backorder.routes';
+import webhookRoutes          from './modules/webhooks/webhook.routes';
+import customerNoteRoutes     from './modules/customer-notes/customer-note.routes';
 
 const app = express();
 const isProd = process.env['NODE_ENV'] === 'production';
@@ -118,6 +120,8 @@ app.use('/api/tags',              tagRoutes);
 app.use('/api/shifts',            shiftRoutes);
 app.use('/api/supplier-products', supplierProductRoutes);
 app.use('/api/backorders',        backorderRoutes);
+app.use('/api/webhooks',          webhookRoutes);
+app.use('/api/customer-notes',    customerNoteRoutes);
 
 // ─── Sentry error capture (must be before error handler) ─────────────────────
 Sentry.setupExpressErrorHandler(app);

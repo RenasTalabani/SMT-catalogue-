@@ -33,10 +33,11 @@ model User {
   returnRequests    ReturnRequest[]  @relation("ReturnRequester")
   returnReviews     ReturnRequest[]  @relation("ReturnReviewer")
   couponUsages      CouponUsage[]    @relation("CouponUser")
-  stocktakesCreated  Stocktake[]       @relation("StocktakeCreator")
-  stocktakesReviewed Stocktake[]      @relation("StocktakeReviewer")
-  shifts             Shift[]          @relation("ShiftEmployee")
+  stocktakesCreated  Stocktake[]        @relation("StocktakeCreator")
+  stocktakesReviewed Stocktake[]       @relation("StocktakeReviewer")
+  shifts             Shift[]           @relation("ShiftEmployee")
   backorderRequests  BackorderRequest[] @relation("BackorderRequester")
+  customerNotes      CustomerNote[]     @relation("NoteAuthor")
 
   @@index([email])
   @@index([role])
@@ -486,6 +487,7 @@ model Customer {
   loyaltyAccount LoyaltyAccount?
   priceList      PriceList?       @relation("CustomerPriceList", fields: [priceListId], references: [id])
   backorders     BackorderRequest[]
+  crmNotes       CustomerNote[]     @relation("CustomerCRMNotes")
 
   @@index([name])
   @@index([phone])
@@ -768,5 +770,67 @@ model BackorderRequest {
   @@index([customerId])
   @@index([requestedBy])
   @@index([status])
+  @@index([createdAt])
+}
+
+// ─── Webhooks ─────────────────────────────────────────────────────────────────
+
+model Webhook {
+  id          Int      @id @default(autoincrement())
+  name        String
+  url         String
+  secret      String
+  events      String   @db.Text   // comma-separated: order.created,stock.low,...
+  isActive    Boolean  @default(true)
+  headers     Json?               // extra headers to send
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  deliveries WebhookDelivery[]
+
+  @@index([isActive])
+}
+
+model WebhookDelivery {
+  id           Int      @id @default(autoincrement())
+  webhookId    Int
+  event        String
+  payload      Json
+  status       String   @default("PENDING")   // PENDING, SUCCESS, FAILED
+  responseCode Int?
+  responseBody String?  @db.Text
+  durationMs   Int?
+  attempt      Int      @default(1)
+  createdAt    DateTime @default(now())
+
+  webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId])
+  @@index([event])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ─── CRM Customer Notes ───────────────────────────────────────────────────────
+
+model CustomerNote {
+  id          Int      @id @default(autoincrement())
+  customerId  Int
+  createdBy   Int
+  type        String   @default("NOTE")   // NOTE, CALL, EMAIL, MEETING, FOLLOW_UP
+  content     String   @db.Text
+  followUpAt  DateTime?
+  isResolved  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customer  Customer @relation(fields: [customerId], references: [id], onDelete: Cascade, name: "CustomerCRMNotes")
+  author    User     @relation("NoteAuthor", fields: [createdBy], references: [id])
+
+  @@index([customerId])
+  @@index([createdBy])
+  @@index([type])
+  @@index([followUpAt])
+  @@index([isResolved])
   @@index([createdAt])
 }

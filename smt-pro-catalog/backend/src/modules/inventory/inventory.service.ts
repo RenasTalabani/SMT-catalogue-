@@ -3,6 +3,7 @@ import { getIO } from '../../config/socket';
 import { get, set, invalidate } from '../../shared/utils/cache.util';
 import { broadcastToAdmins } from '../notifications/notification.service';
 import { sendLowStockAlert } from '../../services/email.service';
+import { fire as fireWebhook } from '../webhooks/webhook.service';
 
 const MOVEMENT_SELECT = {
   id: true, type: true, quantity: true, previousQty: true,
@@ -72,6 +73,7 @@ export const recordMovement = async (employeeId: number, { productId, type, quan
     });
     const emails = admins.map((a) => a.email).filter(Boolean) as string[];
     void sendLowStockAlert([{ ...updated, sku: null }], emails);
+    void fireWebhook('product.low_stock', { productId, name: updated.name, quantity: updated.quantity, lowStockAlert: updated.lowStockAlert });
   }
 
   return movement;
