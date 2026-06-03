@@ -22,14 +22,17 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  orders          Order[]
-  invoices        Invoice[]        @relation("InvoiceCreator")
-  expenses        Expense[]        @relation("ExpenseCreator")
-  incomes         Income[]         @relation("IncomeCreator")
-  stockMovements  StockMovement[]  @relation("StockEmployee")
-  auditLogs       AuditLog[]
-  notifications   Notification[]
-  purchaseOrders  PurchaseOrder[]  @relation("POCreator")
+  orders            Order[]
+  invoices          Invoice[]        @relation("InvoiceCreator")
+  expenses          Expense[]        @relation("ExpenseCreator")
+  incomes           Income[]         @relation("IncomeCreator")
+  stockMovements    StockMovement[]  @relation("StockEmployee")
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  purchaseOrders    PurchaseOrder[]  @relation("POCreator")
+  returnRequests    ReturnRequest[]  @relation("ReturnRequester")
+  returnReviews     ReturnRequest[]  @relation("ReturnReviewer")
+  couponUsages      CouponUsage[]    @relation("CouponUser")
 
   @@index([email])
   @@index([role])
@@ -85,6 +88,7 @@ model Product {
   orderItems         OrderItem[]
   stockMovements     StockMovement[]
   purchaseOrderItems PurchaseOrderItem[]
+  returnItems        ReturnItem[]
 
   @@index([categoryId])
   @@index([category])
@@ -112,10 +116,12 @@ model Order {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  user     User        @relation(fields: [userId], references: [id])
-  customer Customer?   @relation(fields: [customerId], references: [id])
-  items    OrderItem[]
-  invoice  Invoice?
+  user           User            @relation(fields: [userId], references: [id])
+  customer       Customer?       @relation(fields: [customerId], references: [id])
+  items          OrderItem[]
+  invoice        Invoice?
+  returnRequests ReturnRequest[]
+  couponUsage    CouponUsage?
 
   @@index([createdAt])
   @@index([status])
@@ -132,11 +138,98 @@ model OrderItem {
   price     Float
   discount  Float @default(0)
 
-  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product      @relation(fields: [productId], references: [id])
+  returnItems ReturnItem[]
 
   @@index([productId])
   @@index([orderId])
+}
+
+// ─── Returns & Refunds ────────────────────────────────────────────────────────
+
+model ReturnRequest {
+  id          Int      @id @default(autoincrement())
+  orderId     Int
+  requestedBy Int
+  reviewedBy  Int?
+  status      String   @default("PENDING")   // PENDING, APPROVED, REJECTED, PROCESSED
+  reason      String
+  notes       String?  @db.Text
+  refundAmount Float   @default(0)
+  refundMethod String  @default("ORIGINAL")  // ORIGINAL, STORE_CREDIT, CASH
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  order     Order              @relation(fields: [orderId], references: [id])
+  requester User               @relation("ReturnRequester", fields: [requestedBy], references: [id])
+  reviewer  User?              @relation("ReturnReviewer",  fields: [reviewedBy],  references: [id])
+  items     ReturnItem[]
+
+  @@index([orderId])
+  @@index([requestedBy])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ReturnItem {
+  id              Int   @id @default(autoincrement())
+  returnRequestId Int
+  productId       Int
+  orderItemId     Int
+  quantity        Int
+  unitPrice       Float
+  condition       String @default("GOOD")   // GOOD, DAMAGED, DEFECTIVE
+
+  returnRequest ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id])
+  orderItem     OrderItem     @relation(fields: [orderItemId], references: [id])
+
+  @@index([returnRequestId])
+  @@index([productId])
+}
+
+// ─── Coupons / Discounts ──────────────────────────────────────────────────────
+
+model Coupon {
+  id           Int      @id @default(autoincrement())
+  code         String   @unique
+  description  String?
+  type         String   @default("PERCENTAGE")  // PERCENTAGE, FIXED
+  value        Float
+  minOrderAmount Float  @default(0)
+  maxUses      Int?
+  usedCount    Int      @default(0)
+  isActive     Boolean  @default(true)
+  validFrom    DateTime @default(now())
+  validUntil   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  usages CouponUsage[]
+
+  @@index([code])
+  @@index([isActive])
+  @@index([validFrom])
+  @@index([validUntil])
+}
+
+model CouponUsage {
+  id        Int      @id @default(autoincrement())
+  couponId  Int
+  orderId   Int      @unique
+  userId    Int
+  discount  Float
+  usedAt    DateTime @default(now())
+
+  coupon Coupon @relation(fields: [couponId], references: [id])
+  order  Order  @relation(fields: [orderId],  references: [id])
+  user   User   @relation("CouponUser", fields: [userId], references: [id])
+
+  @@index([couponId])
+  @@index([userId])
+  @@index([usedAt])
 }
 
 // ─── Finance ──────────────────────────────────────────────────────────────────
