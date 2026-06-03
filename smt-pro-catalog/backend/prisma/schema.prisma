@@ -33,8 +33,9 @@ model User {
   returnRequests    ReturnRequest[]  @relation("ReturnRequester")
   returnReviews     ReturnRequest[]  @relation("ReturnReviewer")
   couponUsages      CouponUsage[]    @relation("CouponUser")
-  stocktakesCreated Stocktake[]      @relation("StocktakeCreator")
+  stocktakesCreated  Stocktake[]      @relation("StocktakeCreator")
   stocktakesReviewed Stocktake[]     @relation("StocktakeReviewer")
+  shifts             Shift[]         @relation("ShiftEmployee")
 
   @@index([email])
   @@index([role])
@@ -94,6 +95,7 @@ model Product {
   stocktakeItems     StocktakeItem[]
   priceListItems     PriceListItem[]
   bundleItems        BundleItem[]
+  tags               ProductTag[]
 
   @@index([categoryId])
   @@index([category])
@@ -127,6 +129,7 @@ model Order {
   invoice        Invoice?
   returnRequests ReturnRequest[]
   couponUsage    CouponUsage?
+  shiftOrders    ShiftOrder[]
 
   @@index([createdAt])
   @@index([status])
@@ -630,4 +633,83 @@ model BundleItem {
   @@unique([bundleId, productId])
   @@index([bundleId])
   @@index([productId])
+}
+
+// ─── Product Tags & Labels ────────────────────────────────────────────────────
+
+model Tag {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  slug      String   @unique
+  color     String   @default("#6366f1")   // hex color for UI badges
+  createdAt DateTime @default(now())
+
+  products ProductTag[]
+
+  @@index([slug])
+}
+
+model ProductTag {
+  productId Int
+  tagId     Int
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId],     references: [id], onDelete: Cascade)
+
+  @@id([productId, tagId])
+  @@index([productId])
+  @@index([tagId])
+}
+
+// ─── Cash Register / Shift Management ────────────────────────────────────────
+
+model Register {
+  id        Int      @id @default(autoincrement())
+  name      String
+  location  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  shifts Shift[]
+
+  @@index([isActive])
+}
+
+model Shift {
+  id             Int       @id @default(autoincrement())
+  registerId     Int
+  employeeId     Int
+  status         String    @default("OPEN")   // OPEN, CLOSED
+  openingFloat   Float     @default(0)
+  closingFloat   Float?
+  expectedCash   Float?
+  cashVariance   Float?
+  totalSales     Float     @default(0)
+  totalOrders    Int       @default(0)
+  notes          String?   @db.Text
+  openedAt       DateTime  @default(now())
+  closedAt       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  register Register @relation(fields: [registerId], references: [id])
+  employee User     @relation("ShiftEmployee", fields: [employeeId], references: [id])
+  orders   ShiftOrder[]
+
+  @@index([registerId])
+  @@index([employeeId])
+  @@index([status])
+  @@index([openedAt])
+}
+
+model ShiftOrder {
+  shiftId Int
+  orderId Int
+
+  shift Shift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@id([shiftId, orderId])
+  @@index([shiftId])
+  @@index([orderId])
 }
