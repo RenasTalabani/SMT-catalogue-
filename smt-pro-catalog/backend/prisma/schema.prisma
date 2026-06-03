@@ -60,9 +60,10 @@ model Category {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
-  children Category[] @relation("CategoryTree")
-  products Product[]
+  parent           Category?             @relation("CategoryTree", fields: [parentId], references: [id])
+  children         Category[]            @relation("CategoryTree")
+  products         Product[]
+  attributeDefs    AttributeDefinition[]
 
   @@index([parentId])
   @@index([slug])
@@ -100,6 +101,7 @@ model Product {
   tags               ProductTag[]
   supplierProducts   SupplierProduct[]
   backorders         BackorderRequest[]
+  attributes         ProductAttribute[]
 
   @@index([categoryId])
   @@index([category])
@@ -479,6 +481,7 @@ model Customer {
   address     String?   @db.Text
   notes       String?   @db.Text
   priceListId Int?
+  taxExempt   Boolean   @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
@@ -833,4 +836,57 @@ model CustomerNote {
   @@index([followUpAt])
   @@index([isResolved])
   @@index([createdAt])
+}
+
+// ─── Product Attributes / Specifications ──────────────────────────────────────
+
+model AttributeDefinition {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  unit         String?
+  type         String   @default("TEXT")   // TEXT, NUMBER, BOOLEAN
+  isFilterable Boolean  @default(true)
+  categoryId   Int?
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  category   Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  attributes ProductAttribute[]
+
+  @@index([categoryId])
+  @@index([isFilterable])
+}
+
+model ProductAttribute {
+  id            Int     @id @default(autoincrement())
+  productId     Int
+  attributeId   Int
+  value         String
+  numericValue  Float?
+
+  product   Product             @relation(fields: [productId],   references: [id], onDelete: Cascade)
+  attribute AttributeDefinition @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, attributeId])
+  @@index([productId])
+  @@index([attributeId])
+  @@index([numericValue])
+}
+
+// ─── Tax Rate Configuration ───────────────────────────────────────────────────
+
+model TaxRate {
+  id          Int      @id @default(autoincrement())
+  name        String
+  rate        Float
+  type        String   @default("VAT")    // VAT, GST, SALES, CUSTOM
+  countryCode String?
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isDefault])
+  @@index([isActive])
+  @@index([type])
 }
