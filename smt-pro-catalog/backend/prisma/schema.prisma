@@ -22,13 +22,14 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  orders         Order[]
-  invoices       Invoice[]       @relation("InvoiceCreator")
-  expenses       Expense[]       @relation("ExpenseCreator")
-  incomes        Income[]        @relation("IncomeCreator")
-  stockMovements StockMovement[] @relation("StockEmployee")
-  auditLogs      AuditLog[]
-  notifications  Notification[]
+  orders          Order[]
+  invoices        Invoice[]        @relation("InvoiceCreator")
+  expenses        Expense[]        @relation("ExpenseCreator")
+  incomes         Income[]         @relation("IncomeCreator")
+  stockMovements  StockMovement[]  @relation("StockEmployee")
+  auditLogs       AuditLog[]
+  notifications   Notification[]
+  purchaseOrders  PurchaseOrder[]  @relation("POCreator")
 
   @@index([email])
   @@index([role])
@@ -80,9 +81,10 @@ model Product {
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
 
-  categoryRef    Category?       @relation(fields: [categoryId], references: [id])
-  orderItems     OrderItem[]
-  stockMovements StockMovement[]
+  categoryRef        Category?          @relation(fields: [categoryId], references: [id])
+  orderItems         OrderItem[]
+  stockMovements     StockMovement[]
+  purchaseOrderItems PurchaseOrderItem[]
 
   @@index([categoryId])
   @@index([category])
@@ -182,6 +184,7 @@ model Supplier {
   updatedAt      DateTime        @updatedAt
   deletedAt      DateTime?
   stockMovements StockMovement[]
+  purchaseOrders PurchaseOrder[]
 
   @@index([name])
   @@index([deletedAt])
@@ -315,6 +318,49 @@ model InvoiceItem {
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId])
+}
+
+// ─── Purchase Orders ──────────────────────────────────────────────────────────
+
+model PurchaseOrder {
+  id           Int      @id @default(autoincrement())
+  poNumber     String   @unique
+  supplierId   Int
+  createdById  Int
+  status       String   @default("DRAFT")   // DRAFT, SENT, PARTIAL, RECEIVED, CANCELLED
+  notes        String?  @db.Text
+  expectedDate DateTime?
+  receivedAt   DateTime?
+  subtotal     Float    @default(0)
+  total        Float    @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  supplier  Supplier           @relation(fields: [supplierId], references: [id])
+  createdBy User               @relation("POCreator", fields: [createdById], references: [id])
+  items     PurchaseOrderItem[]
+
+  @@index([supplierId])
+  @@index([createdById])
+  @@index([status])
+  @@index([createdAt])
+  @@index([poNumber])
+}
+
+model PurchaseOrderItem {
+  id               Int    @id @default(autoincrement())
+  purchaseOrderId  Int
+  productId        Int
+  orderedQty       Int
+  receivedQty      Int    @default(0)
+  unitCost         Float
+  total            Float
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id])
+
+  @@index([purchaseOrderId])
+  @@index([productId])
 }
 
 // ─── Customers ────────────────────────────────────────────────────────────────

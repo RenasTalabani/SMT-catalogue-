@@ -24,6 +24,7 @@ import customerRoutes     from './modules/customers/customer.routes';
 import exportRoutes       from './modules/exports/export.routes';
 import searchRoutes       from './modules/search/search.routes';
 import shopRoutes         from './modules/shop/shop.routes';
+import purchaseOrderRoutes from './modules/purchase-orders/purchase-order.routes';
 
 const app = express();
 const isProd = process.env['NODE_ENV'] === 'production';
@@ -95,7 +96,8 @@ app.use('/api/users',        userRoutes);
 app.use('/api/customers',    customerRoutes);
 app.use('/api/export',       exportRoutes);
 app.use('/api/search',       searchRoutes);
-app.use('/api/shop',         shopRoutes);       // public — no auth required
+app.use('/api/shop',           shopRoutes);           // public — no auth required
+app.use('/api/purchase-orders', purchaseOrderRoutes);
 
 // ─── Sentry error capture (must be before error handler) ─────────────────────
 Sentry.setupExpressErrorHandler(app);
