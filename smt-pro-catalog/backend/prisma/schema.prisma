@@ -890,3 +890,25 @@ model TaxRate {
   @@index([isActive])
   @@index([type])
 }
+
+// ─── Expense Budgets ──────────────────────────────────────────────────────────
+
+model Budget {
+  id        Int      @id @default(autoincrement())
+  category  String
+  amount    Float
+  period    String   @default("MONTHLY")   // MONTHLY, QUARTERLY, ANNUAL
+  year      Int
+  month     Int?     // 1-12 (MONTHLY only)
+  quarter   Int?     // 1-4  (QUARTERLY only)
+  isActive  Boolean  @default(true)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([category, period, year, month, quarter])
+  @@index([category])
+  @@index([period])
+  @@index([year])
+  @@index([isActive])
+}

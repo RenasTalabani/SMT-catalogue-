@@ -39,6 +39,8 @@ import webhookRoutes          from './modules/webhooks/webhook.routes';
 import customerNoteRoutes     from './modules/customer-notes/customer-note.routes';
 import attributeRoutes        from './modules/attributes/attribute.routes';
 import taxRateRoutes          from './modules/tax-rates/tax-rate.routes';
+import budgetRoutes           from './modules/budgets/budget.routes';
+import productImportRoutes    from './modules/product-import/product-import.routes';
 
 const app = express();
 const isProd = process.env['NODE_ENV'] === 'production';
@@ -126,6 +128,8 @@ app.use('/api/webhooks',          webhookRoutes);
 app.use('/api/customer-notes',    customerNoteRoutes);
 app.use('/api/attributes',        attributeRoutes);
 app.use('/api/tax-rates',         taxRateRoutes);
+app.use('/api/budgets',           budgetRoutes);
+app.use('/api/products/import',   productImportRoutes);
 
 // ─── Sentry error capture (must be before error handler) ─────────────────────
 Sentry.setupExpressErrorHandler(app);

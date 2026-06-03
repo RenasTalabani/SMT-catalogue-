@@ -1,4 +1,5 @@
 import prisma from '../../config/prisma';
+import { checkAndAlert } from '../budgets/budget.service';
 
 const EXPENSE_SELECT = {
   id: true, amount: true, category: true, notes: true, createdAt: true,
@@ -24,11 +25,14 @@ export const getExpenses = async ({ category, page = 1, limit = 20 }: PaginatedQ
   return { expenses, total, page: parseInt(String(page)), limit: take };
 };
 
-export const createExpense = async (createdBy: number, { amount, category, notes }: { amount: number; category: string; notes?: string }) =>
-  prisma.expense.create({
+export const createExpense = async (createdBy: number, { amount, category, notes }: { amount: number; category: string; notes?: string }) => {
+  const expense = await prisma.expense.create({
     data: { amount, category, notes: notes ?? null, createdBy },
     select: EXPENSE_SELECT,
   });
+  void checkAndAlert(category);
+  return expense;
+};
 
 export const deleteExpense = async (id: string | number): Promise<void> => {
   const existing = await prisma.expense.findUnique({ where: { id: parseInt(String(id)) } });
