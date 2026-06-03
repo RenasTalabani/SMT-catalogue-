@@ -37,11 +37,31 @@ router.put('/:id',
   productController.update as RequestHandler,
 );
 
+router.get('/trash/list',
+  protect as RequestHandler,
+  restrictTo('admin') as RequestHandler,
+  productController.getDeleted as RequestHandler,
+);
+
+router.patch('/:id/restore',
+  protect as RequestHandler,
+  restrictTo('admin') as RequestHandler,
+  auditMiddleware('RESTORE', 'Product') as RequestHandler,
+  productController.restore as RequestHandler,
+);
+
 router.delete('/:id',
   protect as RequestHandler,
   restrictTo('admin') as RequestHandler,
   auditMiddleware('DELETE', 'Product') as RequestHandler,
   productController.remove as RequestHandler,
+);
+
+router.delete('/:id/permanent',
+  protect as RequestHandler,
+  restrictTo('admin') as RequestHandler,
+  auditMiddleware('PERMANENT_DELETE', 'Product') as RequestHandler,
+  productController.permanentDelete as RequestHandler,
 );
 
 export default router;

@@ -54,6 +54,41 @@ export const update = async (req: AuthRequest, res: Response): Promise<void> => 
 
 export const remove = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = parseInt(req.params['id'] ?? '0');
-  await customerService.remove(id);
-  res.status(204).send();
+  try {
+    await customerService.remove(id);
+    success(res, null, 'Customer moved to trash');
+  } catch (e: unknown) {
+    if ((e as Error).message === 'CUSTOMER_NOT_FOUND') { error(res, 'Customer not found', 404); return; }
+    throw e;
+  }
+};
+
+export const restore = async (req: AuthRequest, res: Response): Promise<void> => {
+  const id = parseInt(req.params['id'] ?? '0');
+  try {
+    const customer = await customerService.restore(id);
+    success(res, customer, 'Customer restored');
+  } catch (e: unknown) {
+    const msg = (e as Error).message;
+    if (msg === 'CUSTOMER_NOT_FOUND')   { error(res, 'Customer not found', 404); return; }
+    if (msg === 'CUSTOMER_NOT_DELETED') { error(res, 'Customer is not in the trash', 400); return; }
+    throw e;
+  }
+};
+
+export const getDeleted = async (req: AuthRequest, res: Response): Promise<void> => {
+  const page  = Math.max(1, parseInt(String(req.query['page']  ?? 1)));
+  const limit = Math.min(100, Math.max(1, parseInt(String(req.query['limit'] ?? 20))));
+  success(res, await customerService.getDeleted(page, limit));
+};
+
+export const permanentDelete = async (req: AuthRequest, res: Response): Promise<void> => {
+  const id = parseInt(req.params['id'] ?? '0');
+  try {
+    await customerService.permanentDelete(id);
+    success(res, null, 'Customer permanently deleted');
+  } catch (e: unknown) {
+    if ((e as Error).message === 'CUSTOMER_NOT_FOUND') { error(res, 'Customer not found', 404); return; }
+    throw e;
+  }
 };

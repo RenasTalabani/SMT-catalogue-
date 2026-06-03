@@ -22,10 +22,27 @@ router.put('/:id',
   auditMiddleware('UPDATE', 'Customer') as RequestHandler,
   customerController.update as unknown as RequestHandler,
 );
+router.get('/trash/list',
+  restrictTo('super_admin', 'admin') as RequestHandler,
+  customerController.getDeleted as unknown as RequestHandler,
+);
+
+router.patch('/:id/restore',
+  restrictTo('super_admin', 'admin') as RequestHandler,
+  auditMiddleware('RESTORE', 'Customer') as RequestHandler,
+  customerController.restore as unknown as RequestHandler,
+);
+
 router.delete('/:id',
   restrictTo('super_admin', 'admin') as RequestHandler,
   auditMiddleware('DELETE', 'Customer') as RequestHandler,
   customerController.remove as unknown as RequestHandler,
+);
+
+router.delete('/:id/permanent',
+  restrictTo('super_admin', 'admin') as RequestHandler,
+  auditMiddleware('PERMANENT_DELETE', 'Customer') as RequestHandler,
+  customerController.permanentDelete as unknown as RequestHandler,
 );
 
 export default router;

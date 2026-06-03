@@ -4,7 +4,8 @@ import * as productService from './product.service';
 import { success, error } from '../../shared/utils/response.util';
 
 const ERR_MAP: Record<string, { s: number; m: string }> = {
-  PRODUCT_NOT_FOUND: { s: 404, m: 'Product not found' },
+  PRODUCT_NOT_FOUND:    { s: 404, m: 'Product not found' },
+  PRODUCT_NOT_DELETED:  { s: 400, m: 'Product is not in the trash' },
 };
 
 const resolve = (e: Error, res: Response): Response => {
@@ -81,6 +82,26 @@ export const update = async (req: Request, res: Response): Promise<void> => {
 export const remove = async (req: Request, res: Response): Promise<void> => {
   try {
     await productService.remove(req.params['id']!);
-    success(res, null, 'Product deleted');
+    success(res, null, 'Product moved to trash');
+  } catch (e) { resolve(e as Error, res); }
+};
+
+export const restore = async (req: Request, res: Response): Promise<void> => {
+  try {
+    success(res, await productService.restore(req.params['id']!), 'Product restored');
+  } catch (e) { resolve(e as Error, res); }
+};
+
+export const getDeleted = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { page, limit } = req.query as Record<string, string>;
+    success(res, await productService.getDeleted(Number(page ?? 1), Number(limit ?? 20)));
+  } catch (e) { resolve(e as Error, res); }
+};
+
+export const permanentDelete = async (req: Request, res: Response): Promise<void> => {
+  try {
+    await productService.permanentDelete(req.params['id']!);
+    success(res, null, 'Product permanently deleted');
   } catch (e) { resolve(e as Error, res); }
 };

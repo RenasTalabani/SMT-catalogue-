@@ -7,6 +7,7 @@ const ERR_MAP: Record<string, { s: number; m: string }> = {
   PRODUCT_NOT_FOUND:     { s: 404, m: 'Product not found' },
   INSUFFICIENT_STOCK:    { s: 409, m: 'Insufficient stock for this operation' },
   SUPPLIER_NOT_FOUND:    { s: 404, m: 'Supplier not found' },
+  SUPPLIER_NOT_DELETED:  { s: 400, m: 'Supplier is not in the trash' },
   SUPPLIER_EMAIL_EXISTS: { s: 409, m: 'A supplier with this email already exists' },
 };
 
@@ -58,6 +59,18 @@ export const updateSupplier = async (req: AuthRequest, res: Response): Promise<v
 export const deleteSupplier = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     await inventoryService.deleteSupplier(req.params['id']!);
-    success(res, null, 'Supplier deleted');
+    success(res, null, 'Supplier moved to trash');
+  } catch (e) { resolve(e as Error, res); }
+};
+
+export const restoreSupplier = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    success(res, await inventoryService.restoreSupplier(req.params['id']!), 'Supplier restored');
+  } catch (e) { resolve(e as Error, res); }
+};
+
+export const getDeletedSuppliers = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    success(res, await inventoryService.getDeletedSuppliers(req.query as Record<string, string>));
   } catch (e) { resolve(e as Error, res); }
 };

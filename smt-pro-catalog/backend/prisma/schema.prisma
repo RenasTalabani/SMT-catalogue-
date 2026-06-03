@@ -74,10 +74,11 @@ model Product {
   category      String
   sku           String?  @unique
   barcode       String?  @unique
-  unit          String   @default("piece")
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  unit          String    @default("piece")
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
 
   categoryRef    Category?       @relation(fields: [categoryId], references: [id])
   orderItems     OrderItem[]
@@ -89,6 +90,7 @@ model Product {
   @@index([isActive])
   @@index([createdAt])
   @@index([barcode])
+  @@index([deletedAt])
 }
 
 // ─── Orders / POS ─────────────────────────────────────────────────────────────
@@ -178,9 +180,11 @@ model Supplier {
   notes          String?         @db.Text
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
   stockMovements StockMovement[]
 
   @@index([name])
+  @@index([deletedAt])
 }
 
 model StockMovement {
@@ -316,14 +320,15 @@ model InvoiceItem {
 // ─── Customers ────────────────────────────────────────────────────────────────
 
 model Customer {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   name      String
   phone     String?
-  email     String?  @unique
-  address   String?  @db.Text
-  notes     String?  @db.Text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  email     String?   @unique
+  address   String?   @db.Text
+  notes     String?   @db.Text
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   orders Order[]
 
@@ -331,4 +336,5 @@ model Customer {
   @@index([phone])
   @@index([email])
   @@index([createdAt])
+  @@index([deletedAt])
 }

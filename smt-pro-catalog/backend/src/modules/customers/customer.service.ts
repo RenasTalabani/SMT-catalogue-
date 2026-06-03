@@ -27,13 +27,15 @@ export const getAll = async (
   if (cached) return cached;
 
   const skip  = (page - 1) * limit;
+    const baseWhere = { deletedAt: null };
   const where = search ? {
+    ...baseWhere,
     OR: [
       { name:  { contains: search, mode: 'insensitive' as const } },
       { phone: { contains: search, mode: 'insensitive' as const } },
       { email: { contains: search, mode: 'insensitive' as const } },
     ],
-  } : {};
+  } : baseWhere;
 
   const [customers, total] = await Promise.all([
     prisma.customer.findMany({ where, select: SELECT, orderBy: { createdAt: 'desc' }, skip, take: limit }),
@@ -95,7 +97,36 @@ export const update = async (id: number, data: {
 };
 
 export const remove = async (id: number): Promise<void> => {
-  // Detach orders before deleting
+  const existing = await prisma.customer.findUnique({ where: { id } });
+  if (!existing) throw new Error('CUSTOMER_NOT_FOUND');
+  await prisma.customer.update({ where: { id }, data: { deletedAt: new Date() } });
+  await invalidate('customers:');
+};
+
+export const restore = async (id: number): Promise<CustomerItem> => {
+  const existing = await prisma.customer.findUnique({ where: { id } });
+  if (!existing) throw new Error('CUSTOMER_NOT_FOUND');
+  if (!existing.deletedAt) throw new Error('CUSTOMER_NOT_DELETED');
+  const customer = await prisma.customer.update({ where: { id }, data: { deletedAt: null }, select: SELECT });
+  await invalidate('customers:');
+  return customer;
+};
+
+export const getDeleted = async (
+  page = 1, limit = 20,
+): Promise<{ customers: CustomerItem[]; total: number; page: number; limit: number }> => {
+  const skip  = (page - 1) * limit;
+  const where = { deletedAt: { not: null as null } };
+  const [customers, total] = await Promise.all([
+    prisma.customer.findMany({ where, select: SELECT, orderBy: { createdAt: 'desc' }, skip, take: limit }),
+    prisma.customer.count({ where }),
+  ]);
+  return { customers, total, page, limit };
+};
+
+export const permanentDelete = async (id: number): Promise<void> => {
+  const existing = await prisma.customer.findUnique({ where: { id } });
+  if (!existing) throw new Error('CUSTOMER_NOT_FOUND');
   await prisma.order.updateMany({ where: { customerId: id }, data: { customerId: null } });
   await prisma.customer.delete({ where: { id } });
   await invalidate('customers:');

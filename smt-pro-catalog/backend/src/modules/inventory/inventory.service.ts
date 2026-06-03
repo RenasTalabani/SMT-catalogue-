@@ -94,9 +94,10 @@ export const getSuppliers = async ({ page = 1, limit = 20 }: { page?: string | n
 
   const skip = (parseInt(String(page)) - 1) * parseInt(String(limit));
   const take = parseInt(String(limit));
+  const where = { deletedAt: null };
   const [suppliers, total] = await Promise.all([
-    prisma.supplier.findMany({ orderBy: { name: 'asc' }, skip, take }),
-    prisma.supplier.count(),
+    prisma.supplier.findMany({ where, orderBy: { name: 'asc' }, skip, take }),
+    prisma.supplier.count({ where }),
   ]);
   const result = { suppliers, total, page: parseInt(String(page)), limit: take };
   await set(cacheKey, result, 300);
@@ -128,8 +129,30 @@ export const updateSupplier = async (id: string | number, data: Partial<Supplier
 };
 
 export const deleteSupplier = async (id: string | number): Promise<void> => {
-  const existing = await prisma.supplier.findUnique({ where: { id: parseInt(String(id)) } });
+  const sid = parseInt(String(id));
+  const existing = await prisma.supplier.findUnique({ where: { id: sid } });
   if (!existing) throw new Error('SUPPLIER_NOT_FOUND');
-  await prisma.supplier.delete({ where: { id: parseInt(String(id)) } });
+  await prisma.supplier.update({ where: { id: sid }, data: { deletedAt: new Date() } });
   await invalidate('suppliers:');
+};
+
+export const restoreSupplier = async (id: string | number) => {
+  const sid = parseInt(String(id));
+  const existing = await prisma.supplier.findUnique({ where: { id: sid } });
+  if (!existing) throw new Error('SUPPLIER_NOT_FOUND');
+  if (!existing.deletedAt) throw new Error('SUPPLIER_NOT_DELETED');
+  const supplier = await prisma.supplier.update({ where: { id: sid }, data: { deletedAt: null } });
+  await invalidate('suppliers:');
+  return supplier;
+};
+
+export const getDeletedSuppliers = async ({ page = 1, limit = 20 }: { page?: string | number; limit?: string | number } = {}) => {
+  const skip = (parseInt(String(page)) - 1) * parseInt(String(limit));
+  const take = parseInt(String(limit));
+  const where = { deletedAt: { not: null as null } };
+  const [suppliers, total] = await Promise.all([
+    prisma.supplier.findMany({ where, orderBy: { deletedAt: 'desc' }, skip, take }),
+    prisma.supplier.count({ where }),
+  ]);
+  return { suppliers, total, page: parseInt(String(page)), limit: take };
 };

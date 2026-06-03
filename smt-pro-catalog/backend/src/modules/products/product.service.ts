@@ -42,7 +42,7 @@ export const getAll = async ({ category, search, page = 1, limit = 20 }: Product
   const cached   = await get<{ products: unknown[]; total: number; page: number; limit: number }>(cacheKey);
   if (cached) return cached;
 
-  const where: Record<string, unknown> = {};
+  const where: Record<string, unknown> = { deletedAt: null };
   if (category) where['category'] = { equals: category, mode: 'insensitive' };
   if (search)   where['OR'] = [
     { name:        { contains: search, mode: 'insensitive' } },
@@ -122,10 +122,44 @@ export const update = async (
 };
 
 export const remove = async (id: string | number): Promise<void> => {
-  const existing = await prisma.product.findUnique({ where: { id: parseInt(String(id)) } });
+  const pid = parseInt(String(id));
+  const existing = await prisma.product.findUnique({ where: { id: pid } });
+  if (!existing) throw new Error('PRODUCT_NOT_FOUND');
+  await prisma.product.update({ where: { id: pid }, data: { deletedAt: new Date(), isActive: false } });
+  await invalidate('products:');
+  getIO()?.to('all').emit('product:deleted', { id: pid });
+};
+
+export const restore = async (id: string | number) => {
+  const pid = parseInt(String(id));
+  const existing = await prisma.product.findUnique({ where: { id: pid } });
+  if (!existing) throw new Error('PRODUCT_NOT_FOUND');
+  if (!existing.deletedAt) throw new Error('PRODUCT_NOT_DELETED');
+  const product = await prisma.product.update({
+    where: { id: pid },
+    data: { deletedAt: null, isActive: true },
+    select: SELECT,
+  });
+  await invalidate('products:');
+  getIO()?.to('all').emit('product:restored', product);
+  return product;
+};
+
+export const getDeleted = async (page = 1, limit = 20) => {
+  const skip = (page - 1) * limit;
+  const where = { deletedAt: { not: null } };
+  const [products, total] = await Promise.all([
+    prisma.product.findMany({ where, orderBy: { deletedAt: 'desc' }, skip, take: limit, select: { ...SELECT, deletedAt: true } }),
+    prisma.product.count({ where }),
+  ]);
+  return { products, total, page, limit };
+};
+
+export const permanentDelete = async (id: string | number): Promise<void> => {
+  const pid = parseInt(String(id));
+  const existing = await prisma.product.findUnique({ where: { id: pid } });
   if (!existing) throw new Error('PRODUCT_NOT_FOUND');
   await deleteFromCloudinary(existing.imagePublicId);
-  await prisma.product.delete({ where: { id: parseInt(String(id)) } });
+  await prisma.product.delete({ where: { id: pid } });
   await invalidate('products:');
-  getIO()?.to('all').emit('product:deleted', { id: parseInt(String(id)) });
 };

@@ -31,6 +31,17 @@ router.put('/suppliers/:id',
   auditMiddleware('UPDATE', 'Supplier') as RequestHandler,
   inventoryController.updateSupplier as unknown as RequestHandler,
 );
+router.get('/suppliers/trash',
+  restrictTo('super_admin', 'admin') as RequestHandler,
+  inventoryController.getDeletedSuppliers as unknown as RequestHandler,
+);
+
+router.patch('/suppliers/:id/restore',
+  restrictTo('super_admin', 'admin') as RequestHandler,
+  auditMiddleware('RESTORE', 'Supplier') as RequestHandler,
+  inventoryController.restoreSupplier as unknown as RequestHandler,
+);
+
 router.delete('/suppliers/:id',
   restrictTo('super_admin', 'admin') as RequestHandler,
   auditMiddleware('DELETE', 'Supplier') as RequestHandler,
