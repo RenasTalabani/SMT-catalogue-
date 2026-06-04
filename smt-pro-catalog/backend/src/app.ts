@@ -41,6 +41,8 @@ import attributeRoutes        from './modules/attributes/attribute.routes';
 import taxRateRoutes          from './modules/tax-rates/tax-rate.routes';
 import budgetRoutes           from './modules/budgets/budget.routes';
 import productImportRoutes    from './modules/product-import/product-import.routes';
+import variantRoutes          from './modules/variants/variant.routes';
+import reportScheduleRoutes   from './modules/report-schedules/report-schedule.routes';
 
 const app = express();
 const isProd = process.env['NODE_ENV'] === 'production';
@@ -130,6 +132,8 @@ app.use('/api/attributes',        attributeRoutes);
 app.use('/api/tax-rates',         taxRateRoutes);
 app.use('/api/budgets',           budgetRoutes);
 app.use('/api/products/import',   productImportRoutes);
+app.use('/api/variants',          variantRoutes);
+app.use('/api/report-schedules',  reportScheduleRoutes);
 
 // ─── Sentry error capture (must be before error handler) ─────────────────────
 Sentry.setupExpressErrorHandler(app);
