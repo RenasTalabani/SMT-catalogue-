@@ -5,6 +5,7 @@ import {
   LayoutDashboard, Package, ShoppingCart, Warehouse,
   TrendingUp, BarChart3, Settings, LogOut, Package2, Tag, X,
   FileText, Store, Users, ShieldCheck, UserCheck, ClipboardList, Truck, BellRing, BarChart2, PieChart,
+  Zap, Star,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore } from '@/store/auth.store';
@@ -23,8 +24,10 @@ const nav: NavItem[] = [
   { href: '/orders',     label: 'Orders',     icon: ShoppingCart },
   { href: '/invoices',   label: 'Invoices',   icon: FileText },
   { href: '/customers',  label: 'Customers',  icon: UserCheck },
-  { href: '/suppliers',    label: 'Suppliers',    icon: Truck },
-  { href: '/inventory',    label: 'Inventory',    icon: Warehouse },
+  { href: '/suppliers',        label: 'Suppliers',        icon: Truck },
+  { href: '/supplier-ratings', label: 'Supplier Ratings',  icon: Star,  roles: ['super_admin', 'admin', 'employee'] },
+  { href: '/inventory',        label: 'Inventory',         icon: Warehouse },
+  { href: '/flash-sales',      label: 'Flash Sales',       icon: Zap,   roles: ['super_admin', 'admin'] },
   { href: '/stock-alerts', label: 'Stock Alerts', icon: BellRing },
   { href: '/finance',      label: 'Finance',      icon: TrendingUp,  roles: ['super_admin', 'admin'] },
   { href: '/reports',      label: 'Reports',      icon: BarChart3,   roles: ['super_admin', 'admin'] },
