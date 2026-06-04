@@ -75,6 +75,7 @@ model Category {
   children         Category[]            @relation("CategoryTree")
   products         Product[]
   attributeDefs    AttributeDefinition[]
+  translations     CategoryTranslation[]
 
   @@index([parentId])
   @@index([slug])
@@ -120,6 +121,7 @@ model Product {
   recentlyViewed     RecentlyViewed[]
   cartItems          CartItem[]
   reviews            ProductReview[]
+  translations       ProductTranslation[]
 
   @@index([categoryId])
   @@index([category])
@@ -145,6 +147,8 @@ model Order {
   paymentStatus   String   @default("UNPAID")   // UNPAID, PARTIAL, PAID, OVERDUE
   paidAmount      Float    @default(0)
   remainingAmount Float    @default(0)
+  deliveryFee     Float    @default(0)
+  deliveryZoneId  Int?
   notes           String?  @db.Text
   receiptUrl      String?
   createdAt       DateTime @default(now())
@@ -1304,4 +1308,68 @@ model ProductReview {
   @@index([isApproved])
   @@index([rating])
   @@index([createdAt])
+}
+
+// ─── Delivery Zones & Shipping ────────────────────────────────────────────────
+
+model DeliveryZone {
+  id               Int      @id @default(autoincrement())
+  name             String
+  nameAr           String?
+  nameKu           String?
+  regions          Json                         // string[] of city/area names
+  isActive         Boolean  @default(true)
+  freeShippingOver Float?                       // free shipping if order >= this amount
+  estimatedDays    String   @default("1-3")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  rates ShippingRate[]
+
+  @@index([isActive])
+}
+
+model ShippingRate {
+  id        Int   @id @default(autoincrement())
+  zoneId    Int
+  minWeight Float @default(0)    // kg, 0 = no minimum
+  maxWeight Float?               // kg, null = unlimited
+  baseCost  Float                // flat fee
+  perKgCost Float @default(0)   // additional per kg above minWeight
+  isActive  Boolean @default(true)
+
+  zone DeliveryZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@index([zoneId])
+  @@index([isActive])
+}
+
+// ─── Multi-language / i18n ────────────────────────────────────────────────────
+
+model ProductTranslation {
+  id          Int    @id @default(autoincrement())
+  productId   Int
+  locale      String                              // 'ar' | 'ku'
+  name        String
+  description String? @db.Text
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, locale])
+  @@index([productId])
+  @@index([locale])
+}
+
+model CategoryTranslation {
+  id          Int    @id @default(autoincrement())
+  categoryId  Int
+  locale      String
+  name        String
+  description String? @db.Text
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, locale])
+  @@index([categoryId])
+  @@index([locale])
 }
