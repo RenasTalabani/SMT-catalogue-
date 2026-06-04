@@ -15,9 +15,10 @@ model User {
   name         String
   email        String   @unique
   password     String
-  role         String   @default("employee")
+  role         String   @default("employee")  // super_admin, admin, employee, customer
   fcmToken     String?
   isActive     Boolean  @default(true)
+  linkedCustomerId Int? @unique               // for customer-role users
   lastLoginAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -47,6 +48,7 @@ model User {
   recentlyViewed         RecentlyViewed[]    @relation("UserRecentlyViewed")
   cart                   Cart?               @relation("UserCart")
   productReviews         ProductReview[]     @relation("UserReviews")
+  linkedCustomer         Customer?           @relation("UserLinkedCustomer", fields: [linkedCustomerId], references: [id])
 
   @@index([email])
   @@index([role])
@@ -512,6 +514,7 @@ model Customer {
   orders         Order[]
   loyaltyAccount LoyaltyAccount?
   creditAccount  CreditAccount?
+  userAccount    User?            @relation("UserLinkedCustomer")
   priceList      PriceList?       @relation("CustomerPriceList", fields: [priceListId], references: [id])
   backorders     BackorderRequest[]
   crmNotes       CustomerNote[]     @relation("CustomerCRMNotes")
