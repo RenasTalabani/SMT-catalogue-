@@ -11,10 +11,11 @@ const nextConfig: NextConfig = {
     ],
   },
   async rewrites() {
+    const backendUrl = process.env['NEXT_PUBLIC_API_URL'] ?? 'https://amusing-charisma-production-50fc.up.railway.app';
     return [
       {
         source:      '/api/:path*',
-        destination: 'https://amusing-charisma-production-50fc.up.railway.app/api/:path*',
+        destination: `${backendUrl}/api/:path*`,
       },
     ];
   },
