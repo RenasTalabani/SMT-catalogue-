@@ -11,7 +11,10 @@ const nextConfig: NextConfig = {
     ],
   },
   async rewrites() {
-    const backendUrl = process.env['NEXT_PUBLIC_API_URL'] ?? 'https://amusing-charisma-production-50fc.up.railway.app';
+    // BACKEND_URL is a server-side-only build var (no NEXT_PUBLIC_ prefix).
+    // Set it in Railway's web service env to override; otherwise falls back to
+    // the production backend. For local dev set BACKEND_URL in .env.local.
+    const backendUrl = process.env['BACKEND_URL'] ?? 'https://amusing-charisma-production-50fc.up.railway.app';
     return [
       {
         source:      '/api/:path*',
