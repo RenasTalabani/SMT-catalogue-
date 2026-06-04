@@ -56,6 +56,8 @@ import dashboardRoutes        from './modules/dashboard/dashboard.routes';
 import customerAuthRoutes     from './modules/customer-auth/customer-auth.routes';
 import deliveryRoutes         from './modules/delivery/delivery.routes';
 import i18nRoutes             from './modules/i18n/i18n.routes';
+import flashSaleRoutes        from './modules/flash-sales/flash-sale.routes';
+import supplierRatingRoutes   from './modules/supplier-ratings/supplier-rating.routes';
 
 const app = express();
 const isProd = process.env['NODE_ENV'] === 'production';
@@ -160,6 +162,8 @@ app.use('/api/dashboard',         dashboardRoutes);
 app.use('/api/shop',              customerAuthRoutes);
 app.use('/api/delivery',          deliveryRoutes);
 app.use('/api/i18n',              i18nRoutes);
+app.use('/api/flash-sales',       flashSaleRoutes);
+app.use('/api/supplier-ratings',  supplierRatingRoutes);
 
 // ─── Sentry error capture (must be before error handler) ─────────────────────
 Sentry.setupExpressErrorHandler(app);

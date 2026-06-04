@@ -44,6 +44,7 @@ model User {
   discountRequests       DiscountRequest[]   @relation("DiscountRequester")
   discountReviews        DiscountRequest[]   @relation("DiscountReviewer")
   creditPaymentsRecorded CreditPayment[]     @relation("CreditRecorder")
+  supplierRatings        SupplierRating[]    @relation("SupplierRater")
   wishlist               Wishlist[]          @relation("UserWishlist")
   recentlyViewed         RecentlyViewed[]    @relation("UserRecentlyViewed")
   cart                   Cart?               @relation("UserCart")
@@ -76,6 +77,7 @@ model Category {
   products         Product[]
   attributeDefs    AttributeDefinition[]
   translations     CategoryTranslation[]
+  flashSales       FlashSale[]
 
   @@index([parentId])
   @@index([slug])
@@ -122,6 +124,7 @@ model Product {
   cartItems          CartItem[]
   reviews            ProductReview[]
   translations       ProductTranslation[]
+  flashSales         FlashSale[]
 
   @@index([categoryId])
   @@index([category])
@@ -322,6 +325,7 @@ model Supplier {
   stockMovements    StockMovement[]
   purchaseOrders    PurchaseOrder[]
   supplierProducts  SupplierProduct[]
+  ratings           SupplierRating[]
 
   @@index([name])
   @@index([deletedAt])
@@ -476,6 +480,7 @@ model PurchaseOrder {
   supplier  Supplier           @relation(fields: [supplierId], references: [id])
   createdBy User               @relation("POCreator", fields: [createdById], references: [id])
   items     PurchaseOrderItem[]
+  rating    SupplierRating?
 
   @@index([supplierId])
   @@index([createdById])
@@ -965,6 +970,7 @@ model ProductVariant {
   parent     Product             @relation(fields: [parentId], references: [id], onDelete: Cascade)
   orderItems VariantOrderItem[]
   cartItems  CartItem[]
+  flashSales FlashSale[]
 
   @@index([parentId])
   @@index([sku])
@@ -1372,4 +1378,58 @@ model CategoryTranslation {
   @@unique([categoryId, locale])
   @@index([categoryId])
   @@index([locale])
+}
+
+// ─── Flash Sales & Promotional Pricing ───────────────────────────────────────
+
+model FlashSale {
+  id          Int      @id @default(autoincrement())
+  title       String
+  productId   Int?
+  variantId   Int?
+  categoryId  Int?                               // null = all products
+  salePrice   Float?                             // fixed price; null = use discountPct
+  discountPct Float?                             // % off; used when salePrice is null
+  maxQuantity Int?                               // total units cap; null = unlimited
+  soldCount   Int      @default(0)
+  isActive    Boolean  @default(true)
+  startAt     DateTime
+  endAt       DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product  Product?        @relation(fields: [productId],  references: [id], onDelete: Cascade)
+  variant  ProductVariant? @relation(fields: [variantId],  references: [id], onDelete: Cascade)
+  category Category?       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([isActive])
+  @@index([startAt])
+  @@index([endAt])
+  @@index([productId])
+  @@index([categoryId])
+}
+
+// ─── Supplier Performance ─────────────────────────────────────────────────────
+
+model SupplierRating {
+  id              Int      @id @default(autoincrement())
+  supplierId      Int
+  purchaseOrderId Int      @unique
+  qualityScore    Int                             // 1–5
+  deliveryScore   Int                             // 1–5
+  pricingScore    Int                             // 1–5
+  overallScore    Float
+  deliveredOnTime Boolean
+  fillRate        Float                           // received / ordered %
+  notes           String?
+  ratedBy         Int
+  createdAt       DateTime @default(now())
+
+  supplier      Supplier      @relation(fields: [supplierId],      references: [id])
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  ratedByUser   User          @relation("SupplierRater", fields: [ratedBy], references: [id])
+
+  @@index([supplierId])
+  @@index([purchaseOrderId])
+  @@index([createdAt])
 }
