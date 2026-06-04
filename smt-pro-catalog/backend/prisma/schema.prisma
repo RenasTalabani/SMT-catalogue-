@@ -43,6 +43,9 @@ model User {
   discountRequests       DiscountRequest[]   @relation("DiscountRequester")
   discountReviews        DiscountRequest[]   @relation("DiscountReviewer")
   creditPaymentsRecorded CreditPayment[]     @relation("CreditRecorder")
+  wishlist               Wishlist[]          @relation("UserWishlist")
+  recentlyViewed         RecentlyViewed[]    @relation("UserRecentlyViewed")
+  cart                   Cart?               @relation("UserCart")
 
   @@index([email])
   @@index([role])
@@ -110,6 +113,9 @@ model Product {
   variants           ProductVariant[]
   locationStocks     LocationStock[]
   transferItems      StockTransferItem[]
+  wishlistItems      Wishlist[]
+  recentlyViewed     RecentlyViewed[]
+  cartItems          CartItem[]
 
   @@index([categoryId])
   @@index([category])
@@ -949,6 +955,7 @@ model ProductVariant {
 
   parent     Product             @relation(fields: [parentId], references: [id], onDelete: Cascade)
   orderItems VariantOrderItem[]
+  cartItems  CartItem[]
 
   @@index([parentId])
   @@index([sku])
@@ -1178,4 +1185,91 @@ model DiscountRequest {
   @@index([approvedBy])
   @@index([status])
   @@index([createdAt])
+}
+
+// ─── Mobile Commerce — Banners ────────────────────────────────────────────────
+
+model Banner {
+  id          Int       @id @default(autoincrement())
+  title       String
+  subtitle    String?
+  imageUrl    String
+  linkUrl     String?
+  type        String    @default("HERO")   // HERO, PROMO, CATEGORY, FLASH_DEAL
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  validFrom   DateTime  @default(now())
+  validUntil  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([isActive])
+  @@index([type])
+  @@index([sortOrder])
+  @@index([validFrom])
+  @@index([validUntil])
+}
+
+// ─── Wishlist ─────────────────────────────────────────────────────────────────
+
+model Wishlist {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  productId Int
+  createdAt DateTime @default(now())
+
+  user    User    @relation("UserWishlist", fields: [userId],    references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+}
+
+// ─── Recently Viewed ──────────────────────────────────────────────────────────
+
+model RecentlyViewed {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  productId Int
+  viewedAt  DateTime @default(now())
+
+  user    User    @relation("UserRecentlyViewed", fields: [userId],    references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+  @@index([viewedAt])
+}
+
+// ─── Shopping Cart ────────────────────────────────────────────────────────────
+
+model Cart {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User       @relation("UserCart", fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+
+  @@index([userId])
+}
+
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  cartId    Int
+  productId Int
+  variantId Int?
+  quantity  Int      @default(1)
+  addedAt   DateTime @default(now())
+
+  cart    Cart            @relation(fields: [cartId],    references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@unique([cartId, productId, variantId])
+  @@index([cartId])
+  @@index([productId])
 }
