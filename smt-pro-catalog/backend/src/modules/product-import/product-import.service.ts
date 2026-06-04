@@ -34,11 +34,10 @@ export async function parseBuffer(buffer: Buffer, mimetype: string): Promise<Imp
   const wb = new ExcelJS.Workbook();
 
   if (mimetype === 'text/csv' || mimetype === 'application/csv') {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const stream = require('stream') as typeof import('stream');
-    const readable = new stream.PassThrough();
-    readable.end(buffer);
-    await wb.csv.read(readable);
+    // Use Readable.from so the consumer is attached before data flows, avoiding
+    // a race where PassThrough emits 'end' before csv-parse attaches its listener
+    const { Readable } = await import('stream');
+    await wb.csv.read(Readable.from(buffer));
   } else {
     await wb.xlsx.load(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer);
   }

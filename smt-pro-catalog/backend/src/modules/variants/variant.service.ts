@@ -126,7 +126,7 @@ export const adjustStock = async (id: number, delta: number, employeeId: number,
   await prisma.stockMovement.create({
     data: {
       productId:   v.parentId,
-      type:        delta > 0 ? 'IN' : 'OUT',
+      type:        'ADJUSTMENT',
       quantity:    Math.abs(delta),
       previousQty: v.quantity,
       newQty,

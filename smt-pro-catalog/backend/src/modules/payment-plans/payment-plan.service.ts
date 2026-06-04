@@ -79,15 +79,16 @@ export const getById = async (id: number) => {
 export const recordPayment = async (installmentId: number, amount: number, notes?: string) => {
   if (amount <= 0) throw new Error('INVALID_AMOUNT');
 
-  const inst = await prisma.paymentInstallment.findUnique({ where: { id: installmentId } });
-  if (!inst) throw new Error('INSTALLMENT_NOT_FOUND');
-  if (inst.status === 'PAID') throw new Error('ALREADY_PAID');
+  return prisma.$transaction(async (tx) => {
+    // Lock the row inside the transaction to prevent concurrent double-payment
+    const inst = await tx.paymentInstallment.findUnique({ where: { id: installmentId } });
+    if (!inst) throw new Error('INSTALLMENT_NOT_FOUND');
+    if (inst.status === 'PAID') throw new Error('ALREADY_PAID');
 
-  const newPaid   = parseFloat((inst.paidAmount + amount).toFixed(2));
-  const newStatus = newPaid >= inst.amount ? 'PAID' : 'PARTIAL';
+    const newPaid   = parseFloat((inst.paidAmount + amount).toFixed(2));
+    const newStatus = newPaid >= inst.amount ? 'PAID' : 'PARTIAL';
 
-  const [updated] = await prisma.$transaction([
-    prisma.paymentInstallment.update({
+    const updated = await tx.paymentInstallment.update({
       where: { id: installmentId },
       data: {
         paidAmount: newPaid,
@@ -95,21 +96,23 @@ export const recordPayment = async (installmentId: number, amount: number, notes
         paidAt:     newStatus === 'PAID' ? new Date() : inst.paidAt,
         notes:      notes ?? inst.notes,
       },
-    }),
-    prisma.paymentPlan.update({
+    });
+
+    await tx.paymentPlan.update({
       where: { id: inst.planId },
       data:  { paidAmount: { increment: amount } },
-    }),
-  ]);
+    });
 
-  // Recalculate plan status
-  const allInst = await prisma.paymentInstallment.findMany({ where: { planId: inst.planId } });
-  const allPaid = allInst.every((i) => i.id === installmentId ? newStatus === 'PAID' : i.status === 'PAID');
-  if (allPaid) {
-    await prisma.paymentPlan.update({ where: { id: inst.planId }, data: { status: 'COMPLETED' } });
-  }
+    // Check completion inside the transaction so the status read is consistent
+    const remaining = await tx.paymentInstallment.count({
+      where: { planId: inst.planId, status: { not: 'PAID' }, id: { not: installmentId } },
+    });
+    if (remaining === 0 && newStatus === 'PAID') {
+      await tx.paymentPlan.update({ where: { id: inst.planId }, data: { status: 'COMPLETED' } });
+    }
 
-  return updated;
+    return updated;
+  });
 };
 
 // ── Mark overdue installments ─────────────────────────────────────────────────

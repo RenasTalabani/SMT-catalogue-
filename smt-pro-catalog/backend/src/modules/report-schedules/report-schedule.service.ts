@@ -58,10 +58,14 @@ async function buildDailySalesReport(): Promise<{ subject: string; html: string 
     }),
   ]);
 
-  const topRows = await Promise.all(topProducts.map(async (p) => {
-    const prod = await prisma.product.findUnique({ where: { id: p.productId }, select: { name: true } });
-    return `<tr><td>${prod?.name ?? 'Unknown'}</td><td>${p._sum.quantity ?? 0}</td></tr>`;
-  }));
+  const productNames = await prisma.product.findMany({
+    where:  { id: { in: topProducts.map((p) => p.productId) } },
+    select: { id: true, name: true },
+  });
+  const productNameMap = new Map(productNames.map((p) => [p.id, p.name]));
+  const topRows = topProducts.map((p) =>
+    `<tr><td>${productNameMap.get(p.productId) ?? 'Unknown'}</td><td>${p._sum.quantity ?? 0}</td></tr>`,
+  );
 
   const subject = `Daily Sales Report — ${today.toDateString()}`;
   const html = `
@@ -133,10 +137,14 @@ async function buildMonthlyProfitReport(): Promise<{ subject: string; html: stri
   const profit  = rev - exp;
   const margin  = rev > 0 ? ((profit / rev) * 100).toFixed(1) : '0.0';
 
-  const catRows = await Promise.all(topCats.map(async (p) => {
-    const prod = await prisma.product.findUnique({ where: { id: p.productId }, select: { name: true } });
-    return `<tr><td>${prod?.name ?? 'Unknown'}</td><td>${p._sum.quantity ?? 0}</td></tr>`;
-  }));
+  const catProductNames = await prisma.product.findMany({
+    where:  { id: { in: topCats.map((p) => p.productId) } },
+    select: { id: true, name: true },
+  });
+  const catNameMap = new Map(catProductNames.map((p) => [p.id, p.name]));
+  const catRows = topCats.map((p) =>
+    `<tr><td>${catNameMap.get(p.productId) ?? 'Unknown'}</td><td>${p._sum.quantity ?? 0}</td></tr>`,
+  );
 
   const subject = `Monthly Profit Report — ${month}`;
   const html = `

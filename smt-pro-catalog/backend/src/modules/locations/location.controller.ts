@@ -54,7 +54,7 @@ export const getInventory = async (req: AuthRequest, res: Response) => {
 export const setStock = async (req: AuthRequest, res: Response) => {
   try {
     const b = req.body as { productId: number; quantity: number };
-    if (!b.productId || b.quantity === undefined) { error(res, 'productId and quantity required', 400); return; }
+    if (b.productId == null || b.quantity === undefined) { error(res, 'productId and quantity required', 400); return; }
     success(res, await locationService.setStock(Number(req.params['id']), Number(b.productId), Number(b.quantity)), 'Stock set');
   } catch (e) { resolve(e as Error, res); }
 };

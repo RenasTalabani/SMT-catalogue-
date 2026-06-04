@@ -2,8 +2,10 @@ import prisma from '../../config/prisma';
 import { getIO } from '../../config/socket';
 
 async function nextTransferRef(): Promise<string> {
-  const count = await prisma.stockTransfer.count();
-  return `TRF-${new Date().getFullYear()}-${String(count + 1).padStart(5, '0')}`;
+  // count() is not atomic under concurrency — suffix with timestamp+random to prevent duplicate refs
+  const year   = new Date().getFullYear();
+  const suffix = `${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
+  return `TRF-${year}-${suffix}`;
 }
 
 // ── Location CRUD ─────────────────────────────────────────────────────────────
@@ -126,15 +128,25 @@ export const createTransfer = async (
 
 export const completeTransfer = async (id: number) => {
   const transfer = await prisma.stockTransfer.findUnique({ where: { id }, include: { items: true } });
-  if (!transfer)                     throw new Error('TRANSFER_NOT_FOUND');
+  if (!transfer) throw new Error('TRANSFER_NOT_FOUND');
   if (transfer.status !== 'PENDING') throw new Error('TRANSFER_NOT_PENDING');
 
   await prisma.$transaction(async (tx) => {
+    // Re-check status inside the transaction to prevent double-execution on retry
+    const locked = await tx.stockTransfer.findUnique({ where: { id }, select: { status: true } });
+    if (locked?.status !== 'PENDING') throw new Error('TRANSFER_NOT_PENDING');
+
     for (const item of transfer.items) {
-      await tx.locationStock.upsert({
-        where:  { locationId_productId: { locationId: transfer.fromId, productId: item.productId } },
-        create: { locationId: transfer.fromId, productId: item.productId, quantity: 0 },
-        update: { quantity: { decrement: item.quantity } },
+      // Read current source stock first so we can enforce a floor of 0
+      const srcStock = await tx.locationStock.findUnique({
+        where: { locationId_productId: { locationId: transfer.fromId, productId: item.productId } },
+      });
+      if (!srcStock || srcStock.quantity < item.quantity) {
+        throw new Error(`INSUFFICIENT_STOCK:${item.productId}`);
+      }
+      await tx.locationStock.update({
+        where: { locationId_productId: { locationId: transfer.fromId, productId: item.productId } },
+        data:  { quantity: { decrement: item.quantity } },
       });
       await tx.locationStock.upsert({
         where:  { locationId_productId: { locationId: transfer.toId, productId: item.productId } },
