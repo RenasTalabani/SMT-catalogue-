@@ -46,6 +46,7 @@ model User {
   wishlist               Wishlist[]          @relation("UserWishlist")
   recentlyViewed         RecentlyViewed[]    @relation("UserRecentlyViewed")
   cart                   Cart?               @relation("UserCart")
+  productReviews         ProductReview[]     @relation("UserReviews")
 
   @@index([email])
   @@index([role])
@@ -116,6 +117,7 @@ model Product {
   wishlistItems      Wishlist[]
   recentlyViewed     RecentlyViewed[]
   cartItems          CartItem[]
+  reviews            ProductReview[]
 
   @@index([categoryId])
   @@index([category])
@@ -1272,4 +1274,31 @@ model CartItem {
   @@unique([cartId, productId, variantId])
   @@index([cartId])
   @@index([productId])
+}
+
+// ─── Product Reviews & Ratings ────────────────────────────────────────────────
+
+model ProductReview {
+  id          Int      @id @default(autoincrement())
+  productId   Int
+  userId      Int
+  rating      Int                              // 1–5
+  title       String?
+  body        String?  @db.Text
+  isApproved  Boolean  @default(false)
+  isVerified  Boolean  @default(false)        // verified purchaser
+  helpfulCount Int     @default(0)
+  reportCount  Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User    @relation("UserReviews", fields: [userId], references: [id])
+
+  @@unique([productId, userId])
+  @@index([productId])
+  @@index([userId])
+  @@index([isApproved])
+  @@index([rating])
+  @@index([createdAt])
 }
