@@ -36,9 +36,13 @@ model User {
   stocktakesCreated  Stocktake[]        @relation("StocktakeCreator")
   stocktakesReviewed Stocktake[]       @relation("StocktakeReviewer")
   shifts             Shift[]           @relation("ShiftEmployee")
-  stockTransfers     StockTransfer[]   @relation("TransferCreator")
-  backorderRequests  BackorderRequest[] @relation("BackorderRequester")
-  customerNotes      CustomerNote[]     @relation("NoteAuthor")
+  stockTransfers         StockTransfer[]    @relation("TransferCreator")
+  backorderRequests      BackorderRequest[]  @relation("BackorderRequester")
+  customerNotes          CustomerNote[]      @relation("NoteAuthor")
+  loginHistory           EmployeeLoginHistory[] @relation("LoginHistory")
+  discountRequests       DiscountRequest[]   @relation("DiscountRequester")
+  discountReviews        DiscountRequest[]   @relation("DiscountReviewer")
+  creditPaymentsRecorded CreditPayment[]     @relation("CreditRecorder")
 
   @@index([email])
   @@index([role])
@@ -126,25 +130,30 @@ model Order {
   discount      Float    @default(0)
   tax           Float    @default(0)
   finalAmount   Float    @default(0)
-  status        String   @default("PENDING")
-  paymentMethod String   @default("CASH")
-  notes         String?  @db.Text
-  receiptUrl    String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  status          String   @default("PENDING")
+  paymentMethod   String   @default("CASH")
+  paymentStatus   String   @default("UNPAID")   // UNPAID, PARTIAL, PAID, OVERDUE
+  paidAmount      Float    @default(0)
+  remainingAmount Float    @default(0)
+  notes           String?  @db.Text
+  receiptUrl      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  user           User            @relation(fields: [userId], references: [id])
-  customer       Customer?       @relation(fields: [customerId], references: [id])
-  items          OrderItem[]
-  invoice        Invoice?
+  user              User             @relation(fields: [userId], references: [id])
+  customer          Customer?        @relation(fields: [customerId], references: [id])
+  items             OrderItem[]
+  invoice           Invoice?
   returnRequests    ReturnRequest[]
   couponUsage       CouponUsage?
   shiftOrders       ShiftOrder[]
   variantOrderItems VariantOrderItem[]
   paymentPlan       PaymentPlan?
+  creditPayments    CreditPayment[]
 
   @@index([createdAt])
   @@index([status])
+  @@index([paymentStatus])
   @@index([userId])
   @@index([customerId])
   @@index([paymentMethod])
@@ -494,6 +503,7 @@ model Customer {
 
   orders         Order[]
   loyaltyAccount LoyaltyAccount?
+  creditAccount  CreditAccount?
   priceList      PriceList?       @relation("CustomerPriceList", fields: [priceListId], references: [id])
   backorders     BackorderRequest[]
   crmNotes       CustomerNote[]     @relation("CustomerCRMNotes")
@@ -1086,4 +1096,86 @@ model PaymentInstallment {
   @@index([planId])
   @@index([status])
   @@index([dueDate])
+}
+
+// ─── Customer Credit System ───────────────────────────────────────────────────
+
+model CreditAccount {
+  id           Int      @id @default(autoincrement())
+  customerId   Int      @unique
+  creditLimit  Float    @default(0)
+  balance      Float    @default(0)    // current outstanding debt
+  totalDebt    Float    @default(0)    // lifetime debt accumulated
+  totalPaid    Float    @default(0)    // lifetime amount paid
+  status       String   @default("ACTIVE")  // ACTIVE, SUSPENDED, CLOSED
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  customer  Customer        @relation(fields: [customerId], references: [id])
+  payments  CreditPayment[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([balance])
+}
+
+model CreditPayment {
+  id           Int      @id @default(autoincrement())
+  accountId    Int
+  orderId      Int?
+  amount       Float
+  method       String   @default("CASH")   // CASH, BANK_TRANSFER, CARD, OTHER
+  reference    String?
+  notes        String?
+  recordedBy   Int
+  createdAt    DateTime @default(now())
+
+  account        CreditAccount @relation(fields: [accountId],  references: [id])
+  order          Order?        @relation(fields: [orderId],    references: [id])
+  recordedByUser User          @relation("CreditRecorder", fields: [recordedBy], references: [id])
+
+  @@index([accountId])
+  @@index([orderId])
+  @@index([recordedBy])
+  @@index([createdAt])
+}
+
+// ─── Employee Login History & Discount Approvals ──────────────────────────────
+
+model EmployeeLoginHistory {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  ipAddress   String?
+  userAgent   String?
+  success     Boolean  @default(true)
+  failReason  String?
+  createdAt   DateTime @default(now())
+
+  user User @relation("LoginHistory", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([success])
+  @@index([createdAt])
+}
+
+model DiscountRequest {
+  id           Int      @id @default(autoincrement())
+  orderId      Int?
+  requestedBy  Int
+  approvedBy   Int?
+  percentage   Float
+  reason       String
+  status       String   @default("PENDING")  // PENDING, APPROVED, REJECTED
+  reviewNote   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  requester User  @relation("DiscountRequester", fields: [requestedBy], references: [id])
+  reviewer  User? @relation("DiscountReviewer",  fields: [approvedBy],  references: [id])
+
+  @@index([requestedBy])
+  @@index([approvedBy])
+  @@index([status])
+  @@index([createdAt])
 }
