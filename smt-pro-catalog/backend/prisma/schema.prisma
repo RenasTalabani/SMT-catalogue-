@@ -36,6 +36,7 @@ model User {
   stocktakesCreated  Stocktake[]        @relation("StocktakeCreator")
   stocktakesReviewed Stocktake[]       @relation("StocktakeReviewer")
   shifts             Shift[]           @relation("ShiftEmployee")
+  stockTransfers     StockTransfer[]   @relation("TransferCreator")
   backorderRequests  BackorderRequest[] @relation("BackorderRequester")
   customerNotes      CustomerNote[]     @relation("NoteAuthor")
 
@@ -103,6 +104,8 @@ model Product {
   backorders         BackorderRequest[]
   attributes         ProductAttribute[]
   variants           ProductVariant[]
+  locationStocks     LocationStock[]
+  transferItems      StockTransferItem[]
 
   @@index([categoryId])
   @@index([category])
@@ -138,6 +141,7 @@ model Order {
   couponUsage       CouponUsage?
   shiftOrders       ShiftOrder[]
   variantOrderItems VariantOrderItem[]
+  paymentPlan       PaymentPlan?
 
   @@index([createdAt])
   @@index([status])
@@ -972,4 +976,114 @@ model ReportSchedule {
   @@unique([type])
   @@index([isActive])
   @@index([nextRunAt])
+}
+
+// ─── Multi-Warehouse / Locations ──────────────────────────────────────────────
+
+model Location {
+  id        Int      @id @default(autoincrement())
+  name      String
+  code      String   @unique
+  address   String?  @db.Text
+  isDefault Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stocks    LocationStock[]
+  fromTransfers StockTransfer[] @relation("TransferFrom")
+  toTransfers   StockTransfer[] @relation("TransferTo")
+
+  @@index([code])
+  @@index([isDefault])
+  @@index([isActive])
+}
+
+model LocationStock {
+  id         Int @id @default(autoincrement())
+  locationId Int
+  productId  Int
+  quantity   Int @default(0)
+
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId],  references: [id], onDelete: Cascade)
+
+  @@unique([locationId, productId])
+  @@index([locationId])
+  @@index([productId])
+}
+
+model StockTransfer {
+  id           Int      @id @default(autoincrement())
+  reference    String   @unique
+  fromId       Int
+  toId         Int
+  status       String   @default("PENDING")  // PENDING, COMPLETED, CANCELLED
+  notes        String?  @db.Text
+  createdById  Int
+  completedAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  from      Location        @relation("TransferFrom", fields: [fromId],      references: [id])
+  to        Location        @relation("TransferTo",   fields: [toId],        references: [id])
+  createdBy User            @relation("TransferCreator", fields: [createdById], references: [id])
+  items     StockTransferItem[]
+
+  @@index([fromId])
+  @@index([toId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model StockTransferItem {
+  id         Int @id @default(autoincrement())
+  transferId Int
+  productId  Int
+  quantity   Int
+
+  transfer StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  product  Product       @relation(fields: [productId],  references: [id])
+
+  @@unique([transferId, productId])
+  @@index([transferId])
+  @@index([productId])
+}
+
+// ─── Payment Plans / Installments ────────────────────────────────────────────
+
+model PaymentPlan {
+  id               Int      @id @default(autoincrement())
+  orderId          Int      @unique
+  totalAmount      Float
+  paidAmount       Float    @default(0)
+  installmentCount Int
+  status           String   @default("ACTIVE")  // ACTIVE, COMPLETED, DEFAULTED, CANCELLED
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  order         Order                @relation(fields: [orderId], references: [id])
+  installments  PaymentInstallment[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model PaymentInstallment {
+  id        Int       @id @default(autoincrement())
+  planId    Int
+  number    Int
+  amount    Float
+  dueDate   DateTime
+  paidAt    DateTime?
+  paidAmount Float    @default(0)
+  status    String    @default("PENDING")  // PENDING, PAID, PARTIAL, OVERDUE
+  notes     String?
+
+  plan PaymentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+  @@index([status])
+  @@index([dueDate])
 }
