@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Package, ShoppingCart, Warehouse,
   TrendingUp, BarChart3, Settings, LogOut, Package2, Tag, X,
   FileText, Store, Users, ShieldCheck, UserCheck, ClipboardList, Truck, BellRing, BarChart2, PieChart,
-  Zap, Star, ShoppingBag, RotateCcw,
+  Zap, Star, ShoppingBag, RotateCcw, Ticket, CreditCard,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuthStore } from '@/store/auth.store';
@@ -24,6 +24,8 @@ const nav: NavItem[] = [
   { href: '/orders',     label: 'Orders',     icon: ShoppingCart },
   { href: '/invoices',   label: 'Invoices',   icon: FileText },
   { href: '/customers',  label: 'Customers',  icon: UserCheck },
+  { href: '/credit',     label: 'Credit',     icon: CreditCard },
+  { href: '/coupons',    label: 'Coupons',    icon: Ticket,    roles: ['super_admin', 'admin'] },
   { href: '/suppliers',        label: 'Suppliers',        icon: Truck },
   { href: '/purchase-orders',  label: 'Purchase Orders',  icon: ShoppingBag },
   { href: '/supplier-ratings', label: 'Supplier Ratings', icon: Star,     roles: ['super_admin', 'admin', 'employee'] },
