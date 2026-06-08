@@ -70,18 +70,17 @@ class SmtProCatalogApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeModeProvider);
     final locale    = ref.watch(localeProvider);
     final isRtl     = AppConstants.rtlLocales.contains(locale.languageCode);
     // routerProvider watches authProvider → redirects automatically on login/logout
     final router    = ref.watch(routerProvider);
 
     return MaterialApp.router(
-      title:                    'SMT Pro Catalog',
+      title:                    'DaralIraq',
       debugShowCheckedModeBanner: false,
-      themeMode:  themeMode,
-      theme:      AppTheme.lightTheme,
-      darkTheme:  AppTheme.darkTheme,
+      themeMode:  ThemeMode.dark,
+      theme:      AppTheme.dark,
+      darkTheme:  AppTheme.dark,
       routerConfig: router,
       locale:     locale,
       supportedLocales: AppConstants.supportedLocales.map(Locale.new).toList(),

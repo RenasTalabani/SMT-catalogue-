@@ -105,6 +105,7 @@ model Product {
   deletedAt     DateTime?
 
   categoryRef        Category?          @relation(fields: [categoryId], references: [id])
+  images             ProductImage[]
   orderItems         OrderItem[]
   stockMovements     StockMovement[]
   purchaseOrderItems PurchaseOrderItem[]
@@ -133,6 +134,20 @@ model Product {
   @@index([createdAt])
   @@index([barcode])
   @@index([deletedAt])
+}
+
+model ProductImage {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  url       String
+  publicId  String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([order])
 }
 
 // ─── Orders / POS ─────────────────────────────────────────────────────────────

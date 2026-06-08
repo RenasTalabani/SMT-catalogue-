@@ -35,6 +35,13 @@ export const getByBarcode = async (req: Request, res: Response): Promise<void> =
   } catch (e) { resolve(e as Error, res); }
 };
 
+const getImageFiles = (req: Request) => {
+  const files = req.files as Express.Multer.File[] | undefined;
+  if (files?.length) return files.map((f) => ({ buffer: f.buffer, mimetype: f.mimetype }));
+  if (req.file) return [{ buffer: req.file.buffer, mimetype: req.file.mimetype }];
+  return [];
+};
+
 export const create = async (req: Request, res: Response): Promise<void> => {
   try {
     const b = req.body as Record<string, unknown>;
@@ -53,8 +60,7 @@ export const create = async (req: Request, res: Response): Promise<void> => {
         unit:          b['unit']           ? String(b['unit'])                 : undefined,
         isActive:      b['isActive'] !== undefined ? b['isActive'] === true || b['isActive'] === 'true' : undefined,
       },
-      req.file?.buffer,
-      req.file?.mimetype,
+      getImageFiles(req),
     );
     success(res, product, 'Product created', 201);
   } catch (e) { resolve(e as Error, res); }
@@ -75,7 +81,7 @@ export const update = async (req: Request, res: Response): Promise<void> => {
         else updates[f] = b[f];
       }
     }
-    success(res, await productService.update(req.params['id']!, updates as Parameters<typeof productService.update>[1], req.file?.buffer));
+    success(res, await productService.update(req.params['id']!, updates as Parameters<typeof productService.update>[1], getImageFiles(req)));
   } catch (e) { resolve(e as Error, res); }
 };
 

@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:io' show File;
+import '../../../../core/api/api_client.dart';
 import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../config/themes/app_colors.dart';
@@ -38,9 +39,44 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
   bool _isFeatured = false;
   final List<XFile> _pickedImages = [];
   bool _isLoading = false;
+  bool _isLoadingProduct = false;
   String? _errorMsg;
+  List<String> _existingImageUrls = [];
 
   bool get _isEditing => widget.productId != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isEditing) _loadExistingProduct();
+  }
+
+  Future<void> _loadExistingProduct() async {
+    setState(() { _isLoadingProduct = true; _errorMsg = null; });
+    try {
+      final res = await ApiClient().get('${ApiEndpoints.products}/${widget.productId}');
+      final p   = (res.data['data'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+      // Build the existing image list from the gallery; fall back to imageUrl
+      final rawImages = p['images'] as List<dynamic>?;
+      final urls = rawImages != null && rawImages.isNotEmpty
+          ? rawImages.map((img) => '${(img as Map)['url']}').toList()
+          : (p['imageUrl'] != null ? ['${p['imageUrl']}'] : <String>[]);
+
+      setState(() {
+        _nameEnCtrl.text      = (p['name']        as String?) ?? '';
+        _descEnCtrl.text      = (p['description'] as String?) ?? '';
+        _priceCtrl.text       = '${p['price']     ?? ''}';
+        _stockCtrl.text       = '${p['quantity']  ?? '0'}';
+        _isActive             = (p['isActive']    as bool?) ?? true;
+        _existingImageUrls    = urls;
+        _selectedCategoryName = p['category']     as String?;
+      });
+    } catch (e) {
+      setState(() => _errorMsg = 'Failed to load product: $e');
+    } finally {
+      if (mounted) setState(() => _isLoadingProduct = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -64,7 +100,9 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
           onPressed: () => context.pop(),
         ),
       ),
-      body: Form(
+      body: _isLoadingProduct
+          ? const Center(child: CircularProgressIndicator())
+          : Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(20),
@@ -85,9 +123,11 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
             // Image upload
             const _SectionHeader('Product Images'),
             _ImagePicker(
-              pickedImages: _pickedImages,
-              onPick: _pickImages,
-              onRemove: (i) => setState(() => _pickedImages.removeAt(i)),
+              pickedImages:       _pickedImages,
+              existingImageUrls:  _existingImageUrls,
+              onPick:             _pickImages,
+              onRemove:           (i) => setState(() => _pickedImages.removeAt(i)),
+              onRemoveExisting:   (i) => setState(() => _existingImageUrls.removeAt(i)),
             ),
             const SizedBox(height: 20),
 
@@ -168,7 +208,7 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
                       _selectedCategoryName = cats.where((c) => c.id == v).firstOrNull?.name.en;
                       _selectedSubCategory = null;
                     }),
-                    validator: (v) => v == null ? 'Required' : null,
+                    validator: (v) => (v == null && _selectedCategoryName == null) ? 'Required' : null,
                   ),
                   const SizedBox(height: 12),
                   if (_selectedCategory != null)
@@ -271,15 +311,15 @@ class _AddProductPageState extends ConsumerState<AddProductPage> {
         MapEntry('price',    _priceCtrl.text.trim()),
         MapEntry('quantity', _stockCtrl.text.trim().isEmpty ? '0' : _stockCtrl.text.trim()),
         MapEntry('category', _selectedCategoryName ?? _selectedCategory ?? ''),
+        MapEntry('isActive', _isActive.toString()),
       ]);
       if (_descEnCtrl.text.trim().isNotEmpty) {
         formData.fields.add(MapEntry('description', _descEnCtrl.text.trim()));
       }
-      // Attach first image as the 'image' field (backend uses upload.single('image'))
-      if (_pickedImages.isNotEmpty) {
-        final f     = _pickedImages.first;
+      // Attach all picked images under the key "images"
+      for (final f in _pickedImages) {
         final bytes = await f.readAsBytes();
-        formData.files.add(MapEntry('image',
+        formData.files.add(MapEntry('images',
             MultipartFile.fromBytes(bytes, filename: f.name)));
       }
 
@@ -370,68 +410,150 @@ class _FormField extends StatelessWidget {
 }
 
 class _ImagePicker extends StatelessWidget {
-  final List<XFile> pickedImages;
-  final VoidCallback onPick;
-  final void Function(int) onRemove;
+  final List<XFile>  pickedImages;
+  final List<String> existingImageUrls;
+  final VoidCallback          onPick;
+  final void Function(int)    onRemove;
+  final void Function(int)    onRemoveExisting;
 
   const _ImagePicker({
     required this.pickedImages,
+    required this.existingImageUrls,
     required this.onPick,
     required this.onRemove,
+    required this.onRemoveExisting,
   });
+
+  Widget _removeBadge(VoidCallback onTap) => Positioned(
+    top: 2, right: 2,
+    child: GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 20, height: 20,
+        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+        child: const Icon(Icons.close, color: Colors.white, size: 12),
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
+    final hasAny = existingImageUrls.isNotEmpty || pickedImages.isNotEmpty;
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (pickedImages.isNotEmpty)
+        if (hasAny) ...[
           SizedBox(
-            height: 100,
-            child: ListView.separated(
+            height: 104,
+            child: ListView(
               scrollDirection: Axis.horizontal,
-              itemCount: pickedImages.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (_, i) => Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: kIsWeb
-                        ? Image.network(pickedImages[i].path,
-                            width: 100, height: 100, fit: BoxFit.cover)
-                        : Image.file(File(pickedImages[i].path),
-                            width: 100, height: 100, fit: BoxFit.cover),
-                  ),
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: GestureDetector(
-                      onTap: () => onRemove(i),
-                      child: Container(
-                        width: 22,
-                        height: 22,
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
+              children: [
+                // ── Existing server images ──────────────────────────────
+                for (int i = 0; i < existingImageUrls.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Stack(clipBehavior: Clip.none, children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(
+                          existingImageUrls[i],
+                          width: 100, height: 100, fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 100, height: 100,
+                            decoration: BoxDecoration(
+                              color: AppColors.borderDark,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.broken_image_rounded,
+                                color: AppColors.textMuted),
+                          ),
                         ),
-                        child: const Icon(Icons.close, color: Colors.white, size: 14),
+                      ),
+                      _removeBadge(() => onRemoveExisting(i)),
+                    ]),
+                  ),
+
+                // ── Newly picked local images ───────────────────────────
+                for (int i = 0; i < pickedImages.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Stack(clipBehavior: Clip.none, children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: kIsWeb
+                            ? Image.network(pickedImages[i].path,
+                                width: 100, height: 100, fit: BoxFit.cover)
+                            : Image.file(File(pickedImages[i].path),
+                                width: 100, height: 100, fit: BoxFit.cover),
+                      ),
+                      _removeBadge(() => onRemove(i)),
+                    ]),
+                  ),
+
+                // ── Add-more tile ───────────────────────────────────────
+                GestureDetector(
+                  onTap: onPick,
+                  child: Container(
+                    width: 100, height: 100,
+                    decoration: BoxDecoration(
+                      color: AppColors.cardDark,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppColors.primary.withAlpha(80),
+                        style: BorderStyle.solid,
                       ),
                     ),
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_photo_alternate_outlined,
+                            color: AppColors.primary, size: 26),
+                        SizedBox(height: 4),
+                        Text('Add more',
+                            style: TextStyle(
+                                color: AppColors.primary, fontSize: 10)),
+                      ],
+                    ),
                   ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+        ] else ...[
+          // ── Empty state: big dashed upload zone ─────────────────────
+          GestureDetector(
+            onTap: onPick,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 28),
+              decoration: BoxDecoration(
+                color: AppColors.cardDark,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.borderDark,
+                  style: BorderStyle.solid,
+                ),
+              ),
+              child: const Column(
+                children: [
+                  Icon(Icons.add_photo_alternate_outlined,
+                      color: AppColors.textMuted, size: 32),
+                  SizedBox(height: 8),
+                  Text('Tap to add photos',
+                      style: TextStyle(
+                          color: AppColors.textSecondary, fontSize: 13)),
+                  SizedBox(height: 4),
+                  Text('JPEG, PNG or WebP · up to 10 images · max 5 MB each',
+                      style: TextStyle(
+                          color: AppColors.textMuted, fontSize: 10)),
                 ],
               ),
             ),
           ),
-        const SizedBox(height: 10),
-        OutlinedButton.icon(
-          onPressed: onPick,
-          icon: const Icon(Icons.add_photo_alternate_outlined),
-          label: const Text('Add Images'),
-          style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: AppColors.primary),
-            foregroundColor: AppColors.primary,
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-          ),
-        ),
+          const SizedBox(height: 10),
+        ],
       ],
     );
   }

@@ -7,6 +7,9 @@ const ADMIN_ROUTES = ['/finance', '/reports', '/users', '/roles', '/audit', '/pe
 // Routes that only super_admin can access
 const SUPER_ADMIN_ROUTES = ['/users', '/roles'];
 
+// Public routes — visible without login (read-only showcase)
+const PUBLIC_ROUTES = ['/dashboard', '/products'];
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -19,8 +22,10 @@ export function middleware(request: NextRequest) {
 
   const role = request.cookies.get('daraliraq_role')?.value ?? null;
 
-  // Not authenticated — redirect to login
-  if (!token && !pathname.startsWith('/login') && !pathname.startsWith('/api')) {
+  const isPublic = PUBLIC_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
+
+  // Not authenticated — redirect to login (except public showcase routes)
+  if (!token && !pathname.startsWith('/login') && !pathname.startsWith('/api') && !isPublic) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 

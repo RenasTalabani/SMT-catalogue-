@@ -13,6 +13,7 @@ const SELECT = {
   category: true, categoryId: true,
   sku: true, barcode: true, unit: true,
   isActive: true, createdAt: true, updatedAt: true,
+  images: { select: { id: true, url: true, publicId: true, order: true }, orderBy: { order: 'asc' as const } },
 } as const;
 
 interface ProductFilters {
@@ -77,18 +78,29 @@ export const getById = async (id: string | number) => {
   return product;
 };
 
-export const create = async (data: CreateProductInput, imageBuffer?: Buffer, mimetype?: string) => {
+interface ImageFile { buffer: Buffer; mimetype: string; }
+
+export const create = async (data: CreateProductInput, imageFiles: ImageFile[] = []) => {
   let imageUrl: string | null = null;
   let imagePublicId: string | null = null;
+  const extraImages: { url: string; publicId: string; order: number }[] = [];
 
-  if (imageBuffer && isCloudinaryConfigured()) {
-    const result = await uploadToCloudinary(imageBuffer, 'products', mimetype);
-    imageUrl = result.url;
-    imagePublicId = result.publicId;
+  if (imageFiles.length > 0 && isCloudinaryConfigured()) {
+    const uploads = await Promise.all(
+      imageFiles.map((f) => uploadToCloudinary(f.buffer, 'products', f.mimetype)),
+    );
+    imageUrl      = uploads[0]!.url;
+    imagePublicId = uploads[0]!.publicId;
+    uploads.forEach((u, i) => extraImages.push({ url: u.url, publicId: u.publicId, order: i }));
   }
 
   const product = await prisma.product.create({
-    data: { ...data, imageUrl, imagePublicId },
+    data: {
+      ...data,
+      imageUrl,
+      imagePublicId,
+      images: extraImages.length > 0 ? { create: extraImages } : undefined,
+    },
     select: SELECT,
   });
   await invalidate('products:');
@@ -99,20 +111,37 @@ export const create = async (data: CreateProductInput, imageBuffer?: Buffer, mim
 export const update = async (
   id: string | number,
   updates: Partial<CreateProductInput> & { imageUrl?: string; imagePublicId?: string },
-  imageBuffer?: Buffer,
+  imageFiles: ImageFile[] = [],
 ) => {
-  const existing = await prisma.product.findUnique({ where: { id: parseInt(String(id)) } });
+  const pid = parseInt(String(id));
+  const existing = await prisma.product.findUnique({
+    where: { id: pid },
+    include: { images: true },
+  });
   if (!existing) throw new Error('PRODUCT_NOT_FOUND');
 
-  if (imageBuffer && isCloudinaryConfigured()) {
-    await deleteFromCloudinary(existing.imagePublicId);
-    const result = await uploadToCloudinary(imageBuffer);
-    updates.imageUrl      = result.url;
-    updates.imagePublicId = result.publicId;
+  if (imageFiles.length > 0 && isCloudinaryConfigured()) {
+    // Delete old images from storage
+    await Promise.all([
+      deleteFromCloudinary(existing.imagePublicId),
+      ...existing.images.map((img) => deleteFromCloudinary(img.publicId)),
+    ]);
+    // Upload new images
+    const uploads = await Promise.all(
+      imageFiles.map((f) => uploadToCloudinary(f.buffer, 'products', f.mimetype)),
+    );
+    updates.imageUrl      = uploads[0]!.url;
+    updates.imagePublicId = uploads[0]!.publicId;
+
+    // Replace all ProductImage rows
+    await prisma.productImage.deleteMany({ where: { productId: pid } });
+    await prisma.productImage.createMany({
+      data: uploads.map((u, i) => ({ productId: pid, url: u.url, publicId: u.publicId, order: i })),
+    });
   }
 
   const product = await prisma.product.update({
-    where: { id: parseInt(String(id)) },
+    where: { id: pid },
     data: updates,
     select: SELECT,
   });

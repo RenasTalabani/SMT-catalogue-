@@ -236,8 +236,8 @@ class _ScanOverlayPainter extends CustomPainter {
       [rect.bottomLeft,  Offset(rect.left + len, rect.bottom), Offset(rect.left,  rect.bottom - len)],
       [rect.bottomRight, Offset(rect.right - len, rect.bottom),Offset(rect.right, rect.bottom - len)],
     ]) {
-      canvas.drawLine(corner[0] as Offset, corner[1] as Offset, bracketPaint);
-      canvas.drawLine(corner[0] as Offset, corner[2] as Offset, bracketPaint);
+      canvas.drawLine(corner[0], corner[1], bracketPaint);
+      canvas.drawLine(corner[0], corner[2], bracketPaint);
     }
   }
 

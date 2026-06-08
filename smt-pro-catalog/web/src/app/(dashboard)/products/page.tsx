@@ -10,13 +10,17 @@ import { SocketEvent } from '@/lib/socket';
 import Header from '@/components/layout/Header';
 import { clsx } from 'clsx';
 import Image from 'next/image';
-import { Plus, X, Pencil, Trash2, ImagePlus, ShoppingCart } from 'lucide-react';
+import { Plus, X, Pencil, Trash2, ImagePlus, ShoppingCart, LogIn } from 'lucide-react';
+import { useAuthStore } from '@/store/auth.store';
+import Link from 'next/link';
 import ExportButton from '@/components/ui/ExportButton';
 import toast from 'react-hot-toast';
 import { useCartStore } from '@/store/cart.store';
 import CartPanel from '@/components/pos/CartPanel';
 
 // ── Types ────────────────────────────────────────────────────────────────────
+
+interface ProductImage { id: number; url: string; order: number; }
 
 interface Product {
   id:            number;
@@ -29,6 +33,7 @@ interface Product {
   imageUrl:      string | null;
   description:   string | null;
   sku:           string | null;
+  images:        ProductImage[];
 }
 
 interface ProductsResponse {
@@ -75,6 +80,8 @@ function flattenCategories(cats: Category[], prefix = ''): { id: number; name: s
 
 // ── Product Modal ─────────────────────────────────────────────────────────────
 
+interface ImageEntry { file: File; preview: string; }
+
 function ProductModal({
   open, onClose, editProduct, categories,
 }: {
@@ -86,8 +93,15 @@ function ProductModal({
   const qc     = useQueryClient();
   const isEdit = !!editProduct;
 
-  const [imageFile,    setImageFile]    = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(editProduct?.imageUrl ?? null);
+  // Multiple images: new files picked by the user
+  const [newImages,      setNewImages]      = useState<ImageEntry[]>([]);
+  // Existing images already on the server (shown when editing, cleared if user picks new ones)
+  const [existingUrls,   setExistingUrls]   = useState<string[]>(() => {
+    if (!editProduct) return [];
+    // Prefer the full images array; fall back to the primary imageUrl
+    const gallery = editProduct.images?.map(img => img.url) ?? [];
+    return gallery.length > 0 ? gallery : (editProduct.imageUrl ? [editProduct.imageUrl] : []);
+  });
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<ProductForm>({
@@ -104,12 +118,21 @@ function ProductModal({
     } : { name: '', category: '', price: 0, quantity: 0, lowStockAlert: 5, description: '', sku: '', isActive: true },
   });
 
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+  const onFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    // When new files are chosen, clear existing server images (they will be replaced on save)
+    setExistingUrls([]);
+    setNewImages(prev => [
+      ...prev,
+      ...files.map(f => ({ file: f, preview: URL.createObjectURL(f) })),
+    ]);
+    // Reset so the same file can be re-selected
+    e.target.value = '';
   };
+
+  const removeNew      = (i: number) => setNewImages(prev => prev.filter((_, idx) => idx !== i));
+  const removeExisting = (i: number) => setExistingUrls(prev => prev.filter((_, idx) => idx !== i));
 
   const mutation = useMutation({
     mutationFn: (data: ProductForm) => {
@@ -117,7 +140,8 @@ function ProductModal({
       Object.entries(data).forEach(([k, v]) => {
         if (v !== undefined && v !== null && v !== '') fd.append(k, String(v));
       });
-      if (imageFile) fd.append('image', imageFile);
+      // Append every picked file under the key "images"
+      newImages.forEach(({ file }) => fd.append('images', file));
 
       return isEdit
         ? api.put(`/products/${editProduct!.id}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
@@ -127,8 +151,8 @@ function ProductModal({
       void qc.invalidateQueries({ queryKey: ['products'] });
       toast.success(isEdit ? 'Product updated' : 'Product created');
       reset();
-      setImageFile(null);
-      setImagePreview(null);
+      setNewImages([]);
+      setExistingUrls([]);
       onClose();
     },
     onError: (err: Error) => toast.error(err.message),
@@ -136,7 +160,8 @@ function ProductModal({
 
   if (!open) return null;
 
-  const flatCats = flattenCategories(categories);
+  const flatCats      = flattenCategories(categories);
+  const hasAnyImage   = existingUrls.length > 0 || newImages.length > 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
@@ -153,42 +178,75 @@ function ProductModal({
 
         <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="overflow-y-auto p-6 space-y-4">
 
-          {/* ── Image picker ── */}
+          {/* ── Multi-image picker ── */}
           <div>
-            <Label>Product Photo</Label>
-            <div className="flex items-center gap-4">
-              <div
-                onClick={() => fileRef.current?.click()}
-                className={clsx(
-                  'relative flex h-24 w-24 flex-shrink-0 cursor-pointer items-center justify-center rounded-2xl border-2 border-dashed transition-colors',
-                  imagePreview ? 'border-primary/40' : 'border-dark-border hover:border-primary/40',
-                )}
-              >
-                {imagePreview ? (
-                  <Image src={imagePreview} alt="preview" fill className="rounded-2xl object-cover" />
-                ) : (
-                  <div className="flex flex-col items-center gap-1 text-[#94A3B8]">
-                    <ImagePlus size={22} />
-                    <span className="text-[10px]">Upload</span>
+            <Label>Product Photos</Label>
+
+            {/* Thumbnails grid */}
+            {hasAnyImage && (
+              <div className="mb-3 flex flex-wrap gap-2">
+                {/* Existing server images */}
+                {existingUrls.map((url, i) => (
+                  <div key={`ex-${i}`} className="relative h-20 w-20 flex-shrink-0">
+                    <Image src={url} alt="product" fill className="rounded-xl object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeExisting(i)}
+                      className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-white shadow-sm"
+                      aria-label="Remove image"
+                    >
+                      <X size={10} />
+                    </button>
                   </div>
-                )}
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-[#94A3B8] mb-2">JPEG, PNG or WebP — max 5 MB</p>
-                <button type="button" onClick={() => fileRef.current?.click()}
-                  className="btn-ghost text-xs py-1.5 px-3">
-                  {imagePreview ? 'Change photo' : 'Choose photo'}
+                ))}
+                {/* Newly picked images */}
+                {newImages.map(({ preview }, i) => (
+                  <div key={`new-${i}`} className="relative h-20 w-20 flex-shrink-0">
+                    <Image src={preview} alt="preview" fill className="rounded-xl object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeNew(i)}
+                      className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-danger text-white shadow-sm"
+                      aria-label="Remove image"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                ))}
+                {/* Add-more tile */}
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="flex h-20 w-20 flex-shrink-0 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-dark-border text-[#94A3B8] hover:border-primary/40 hover:text-primary transition-colors"
+                  aria-label="Add more photos"
+                >
+                  <ImagePlus size={20} />
                 </button>
-                {imagePreview && (
-                  <button type="button" onClick={() => { setImageFile(null); setImagePreview(null); }}
-                    className="ml-2 text-xs text-danger hover:underline">
-                    Remove
-                  </button>
-                )}
               </div>
-            </div>
-            <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp"
-              onChange={onFileChange} aria-label="Product photo" className="hidden" />
+            )}
+
+            {/* Empty state */}
+            {!hasAnyImage && (
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-dark-border py-8 text-[#94A3B8] hover:border-primary/40 hover:text-primary transition-colors"
+              >
+                <ImagePlus size={28} />
+                <span className="text-xs">Click to add photos</span>
+                <span className="text-[10px] opacity-60">JPEG, PNG or WebP · up to 10 images · max 5 MB each</span>
+              </button>
+            )}
+
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              onChange={onFilesChange}
+              aria-label="Product photos"
+              className="hidden"
+            />
           </div>
 
           {/* ── Basic fields ── */}
@@ -300,6 +358,8 @@ export default function ProductsPage() {
   const [editProduct,  setEditProduct]  = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const { addItem, itemCount, openCart } = useCartStore();
+  const { token } = useAuthStore();
+  const isGuest = !token;
 
   const { data, isLoading } = useQuery<ProductsResponse>({
     queryKey: ['products'],
@@ -330,23 +390,33 @@ export default function ProductsPage() {
           <p className="text-sm text-[#94A3B8]">
             {data?.total ?? 0} product{(data?.total ?? 0) !== 1 ? 's' : ''}
           </p>
-          <ExportButton endpoint="/export/products" filename="products" />
+          {!isGuest && <ExportButton endpoint="/export/products" filename="products" />}
           <div className="flex items-center gap-3">
-            {/* Cart button */}
-            <button type="button" onClick={openCart}
-              className="relative flex items-center gap-2 rounded-xl border border-dark-border bg-dark-surface px-4 py-2 text-sm font-medium text-[#94A3B8] hover:text-white hover:border-primary/40 transition-colors">
-              <ShoppingCart size={16} />
-              Cart
-              {itemCount > 0 && (
-                <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">
-                  {itemCount}
-                </span>
-              )}
-            </button>
-            <button type="button" onClick={openAdd} className="btn-primary flex items-center gap-2">
-              <Plus size={16} />
-              Add Product
-            </button>
+            {isGuest ? (
+              <Link href="/login"
+                className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-dark">
+                <LogIn size={15} />
+                Sign In to Manage
+              </Link>
+            ) : (
+              <>
+                {/* Cart button */}
+                <button type="button" onClick={openCart}
+                  className="relative flex items-center gap-2 rounded-xl border border-dark-border bg-dark-surface px-4 py-2 text-sm font-medium text-[#94A3B8] hover:text-white hover:border-primary/40 transition-colors">
+                  <ShoppingCart size={16} />
+                  Cart
+                  {itemCount > 0 && (
+                    <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">
+                      {itemCount}
+                    </span>
+                  )}
+                </button>
+                <button type="button" onClick={openAdd} className="btn-primary flex items-center gap-2">
+                  <Plus size={16} />
+                  Add Product
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -355,7 +425,10 @@ export default function ProductsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-dark-border bg-dark-surface">
-                  {['Product', 'Category', 'SKU', 'Price', 'Stock', 'Status', 'Sell', 'Actions'].map((h, i) => (
+                  {(isGuest
+                    ? ['Product', 'Category', 'SKU', 'Price', 'Stock', 'Status']
+                    : ['Product', 'Category', 'SKU', 'Price', 'Stock', 'Status', 'Sell', 'Actions']
+                  ).map((h, i) => (
                     <th key={h} className={clsx(
                       'px-4 py-3 text-xs font-medium uppercase tracking-wide text-[#94A3B8]',
                       i <= 2 ? 'text-left' : i <= 4 ? 'text-right' : 'text-center',
@@ -417,32 +490,36 @@ export default function ProductsPage() {
                         {p.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    {/* Sell button */}
-                    <td className="px-4 py-3 text-center">
-                      <button
-                        type="button"
-                        disabled={p.quantity === 0 || !p.isActive}
-                        onClick={() => { addItem({ id: p.id, name: p.name, price: p.price, imageUrl: p.imageUrl }); }}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-green-500/15 px-3 py-1.5 text-xs font-semibold text-green-400 hover:bg-green-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                        title={p.quantity === 0 ? 'Out of stock' : 'Add to cart'}
-                      >
-                        <ShoppingCart size={12} />
-                        Sell
-                      </button>
-                    </td>
-                    {/* Edit / Delete */}
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button type="button" onClick={() => openEdit(p)} aria-label="Edit product"
-                          className="flex h-8 w-8 items-center justify-center rounded-lg text-[#94A3B8] hover:bg-primary/20 hover:text-primary transition-colors">
-                          <Pencil size={14} />
+                    {/* Sell button — hidden for guests */}
+                    {!isGuest && (
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          type="button"
+                          disabled={p.quantity === 0 || !p.isActive}
+                          onClick={() => { addItem({ id: p.id, name: p.name, price: p.price, imageUrl: p.imageUrl }); }}
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-green-500/15 px-3 py-1.5 text-xs font-semibold text-green-400 hover:bg-green-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          title={p.quantity === 0 ? 'Out of stock' : 'Add to cart'}
+                        >
+                          <ShoppingCart size={12} />
+                          Sell
                         </button>
-                        <button type="button" onClick={() => setDeleteTarget(p)} aria-label="Delete product"
-                          className="flex h-8 w-8 items-center justify-center rounded-lg text-[#94A3B8] hover:bg-danger/20 hover:text-danger transition-colors">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
+                      </td>
+                    )}
+                    {/* Edit / Delete — hidden for guests */}
+                    {!isGuest && (
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button type="button" onClick={() => openEdit(p)} aria-label="Edit product"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-[#94A3B8] hover:bg-primary/20 hover:text-primary transition-colors">
+                            <Pencil size={14} />
+                          </button>
+                          <button type="button" onClick={() => setDeleteTarget(p)} aria-label="Delete product"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-[#94A3B8] hover:bg-danger/20 hover:text-danger transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -451,15 +528,17 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      <CartPanel />
-      <ProductModal
-        key={editProduct ? `edit-${editProduct.id}` : 'new'}
-        open={showModal}
-        onClose={closeModal}
-        editProduct={editProduct}
-        categories={categories}
-      />
-      {deleteTarget && (
+      {!isGuest && <CartPanel />}
+      {!isGuest && (
+        <ProductModal
+          key={editProduct ? `edit-${editProduct.id}` : 'new'}
+          open={showModal}
+          onClose={closeModal}
+          editProduct={editProduct}
+          categories={categories}
+        />
+      )}
+      {!isGuest && deleteTarget && (
         <DeleteConfirm product={deleteTarget} onClose={() => setDeleteTarget(null)} />
       )}
     </div>
