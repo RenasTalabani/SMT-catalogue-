@@ -7,7 +7,7 @@ const PRODUCT_CACHE_TTL = 60; // 1 minute — products change frequently
 
 const SELECT = {
   id: true, name: true, description: true,
-  price: true, costPrice: true,
+  price: true, discountPrice: true, costPrice: true,
   quantity: true, lowStockAlert: true,
   imageUrl: true, imagePublicId: true,
   category: true, categoryId: true,
@@ -27,6 +27,7 @@ interface CreateProductInput {
   name: string;
   description?: string;
   price: number;
+  discountPrice?: number | null;
   costPrice?: number;
   quantity: number;
   lowStockAlert?: number;
