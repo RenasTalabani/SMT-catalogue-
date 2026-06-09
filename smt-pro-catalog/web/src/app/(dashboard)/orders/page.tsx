@@ -44,10 +44,12 @@ export default function OrdersPage() {
 
   const orders = data?.orders ?? [];
 
-  const generateInvoice = async (orderId: number) => {
+  const generateInvoice = async (orderId: number, discount: number) => {
     setGeneratingId(orderId);
     try {
-      const res = await api.post(`/invoices/order/${orderId}`);
+      const res = await api.post(`/invoices/order/${orderId}`, {
+        ...(discount > 0 ? { discountType: 'FIXED', discountValue: discount } : {}),
+      });
       const inv = res.data.data;
       toast.success(`Invoice ${inv.invoiceNumber} created!`);
       // Open PDF preview in new tab
@@ -109,7 +111,7 @@ export default function OrdersPage() {
                     <td className="px-4 py-3 text-center">
                       <button
                         type="button"
-                        onClick={() => generateInvoice(o.id)}
+                        onClick={() => generateInvoice(o.id, o.discount)}
                         disabled={generatingId === o.id}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/15 text-primary hover:bg-primary/25 text-xs font-medium transition-colors disabled:opacity-50"
                         title="Generate Invoice"
