@@ -63,6 +63,10 @@ export const downloadPDF = async (req: Request, res: Response): Promise<void> =>
 export const previewPDF = async (req: Request, res: Response): Promise<void> => {
   try {
     const inv = await invoiceService.getById(parseInt(req.params['id']!));
+    if (inv.pdfUrl) {
+      res.redirect(inv.pdfUrl);
+      return;
+    }
     const buf = await invoiceService.regeneratePDF(parseInt(req.params['id']!));
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${inv.invoiceNumber}.pdf"`);
