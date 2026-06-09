@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { FileText, Download, Eye, Search, CheckCircle, Clock, XCircle, Printer } from 'lucide-react';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
+import Header from '@/components/layout/Header';
 
 interface Invoice {
   id:            number;
@@ -52,13 +53,9 @@ export default function InvoicesPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
-
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white">Invoices</h1>
-        <p className="text-sm text-[#94A3B8] mt-1">{total} invoice{total !== 1 ? 's' : ''} total</p>
-      </div>
+    <div className="flex flex-col">
+      <Header title="Invoices" />
+      <div className="p-4 md:p-6 space-y-5">
 
       {/* Search */}
       <div className="relative">
@@ -181,6 +178,7 @@ export default function InvoicesPage() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }
