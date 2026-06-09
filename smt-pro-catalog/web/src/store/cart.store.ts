@@ -5,6 +5,7 @@ export interface CartItem {
   name:          string;
   price:         number;   // current sale price (may be edited)
   originalPrice: number;   // catalog price — never changes after add
+  discountPrice?: number | null; // preset discount price from product config
   quantity:      number;
   imageUrl?:     string | null;
 }
