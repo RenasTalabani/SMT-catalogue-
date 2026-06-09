@@ -27,6 +27,7 @@ interface Product {
   name:          string;
   category:      string;
   price:         number;
+  discountPrice: number | null;
   quantity:      number;
   lowStockAlert: number;
   isActive:      boolean;
@@ -55,6 +56,7 @@ const productSchema = z.object({
   name:          z.string().min(2, 'Name must be at least 2 characters'),
   category:      z.string().min(1, 'Category is required'),
   price:         z.coerce.number().positive('Price must be greater than 0'),
+  discountPrice: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().min(0).optional()),
   quantity:      z.coerce.number().int().min(0, 'Quantity must be 0 or more'),
   lowStockAlert: z.coerce.number().int().min(0).default(5),
   description:   z.string().optional(),
@@ -110,12 +112,13 @@ function ProductModal({
       name:          editProduct.name,
       category:      editProduct.category,
       price:         editProduct.price,
+      discountPrice: editProduct.discountPrice ?? undefined,
       quantity:      editProduct.quantity,
       lowStockAlert: editProduct.lowStockAlert,
       description:   editProduct.description ?? '',
       sku:           editProduct.sku ?? '',
       isActive:      editProduct.isActive,
-    } : { name: '', category: '', price: 0, quantity: 0, lowStockAlert: 5, description: '', sku: '', isActive: true },
+    } : { name: '', category: '', price: 0, discountPrice: undefined, quantity: 0, lowStockAlert: 5, description: '', sku: '', isActive: true },
   });
 
   const onFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -281,6 +284,11 @@ function ProductModal({
               <Label>Price ($) *</Label>
               <input {...register('price')} type="number" step="0.01" min="0.01" placeholder="0.00" className="input" />
               {errors.price && <p className="mt-1 text-xs text-danger">{errors.price.message}</p>}
+            </div>
+            <div>
+              <Label>Discount Price ($)</Label>
+              <input {...register('discountPrice')} type="number" step="0.01" min="0" placeholder="Optional preset discount" className="input" />
+              {errors.discountPrice && <p className="mt-1 text-xs text-danger">{errors.discountPrice.message}</p>}
             </div>
             <div>
               <Label>Quantity *</Label>
@@ -477,7 +485,12 @@ export default function ProductsPage() {
                     </td>
                     <td className="px-4 py-3 text-[#94A3B8]">{p.category}</td>
                     <td className="px-4 py-3 font-mono text-xs text-[#94A3B8]">{p.sku ?? '—'}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-white">${p.price.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <span className="font-semibold text-white">${p.price.toFixed(2)}</span>
+                      {p.discountPrice && p.discountPrice > 0 && (
+                        <span className="ml-1.5 text-[10px] font-bold text-green-400">(D: ${p.discountPrice.toFixed(2)})</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <span className={clsx('font-semibold', p.quantity <= p.lowStockAlert ? 'text-danger' : 'text-white')}>
                         {p.quantity}
@@ -496,7 +509,7 @@ export default function ProductsPage() {
                         <button
                           type="button"
                           disabled={p.quantity === 0 || !p.isActive}
-                          onClick={() => { addItem({ id: p.id, name: p.name, price: p.price, imageUrl: p.imageUrl }); }}
+                          onClick={() => { addItem({ id: p.id, name: p.name, price: p.price, discountPrice: p.discountPrice, imageUrl: p.imageUrl }); }}
                           className="inline-flex items-center gap-1.5 rounded-xl bg-green-500/15 px-3 py-1.5 text-xs font-semibold text-green-400 hover:bg-green-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                           title={p.quantity === 0 ? 'Out of stock' : 'Add to cart'}
                         >
