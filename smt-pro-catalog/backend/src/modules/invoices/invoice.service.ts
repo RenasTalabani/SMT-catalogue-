@@ -13,12 +13,10 @@ function getSupabase() {
   return createClient(url, key);
 }
 
-// ── Invoice number generator: INV-YYYY-000001 ─────────────────────────────────
-async function nextInvoiceNumber(): Promise<string> {
-  const year  = new Date().getFullYear();
-  const count = await prisma.invoice.count();
-  const seq   = String(count + 1).padStart(6, '0');
-  return `INV-${year}-${seq}`;
+// ── Invoice number from DB id (race-condition safe) ───────────────────────────
+function buildInvoiceNumber(id: number): string {
+  const year = new Date().getFullYear();
+  return `INV-${year}-${String(id).padStart(6, '0')}`;
 }
 
 // ── Upload PDF buffer to Supabase Storage ─────────────────────────────────────
@@ -72,38 +70,12 @@ export const createFromOrder = async (
   const taxAmount    = parseFloat((((subtotal - discountAmount) * taxRate) / 100).toFixed(2));
   const total        = parseFloat((subtotal - discountAmount + taxAmount).toFixed(2));
 
-  const invoiceNumber = await nextInvoiceNumber();
-  const creator       = await prisma.user.findUnique({ where: { id: createdById }, select: { name: true } });
+  const creator = await prisma.user.findUnique({ where: { id: createdById }, select: { name: true } });
 
-  // Build PDF
-  const pdfData = {
-    invoiceNumber,
-    issuedAt:   new Date(),
-    status:     'ISSUED',
-    paymentMethod: order.paymentMethod,
-    notes:      opts?.notes ?? null,
-    customerName:    opts?.customerName    ?? null,
-    customerPhone:   opts?.customerPhone   ?? null,
-    customerEmail:   opts?.customerEmail   ?? null,
-    customerAddress: opts?.customerAddress ?? null,
-    subtotal, discountAmount, discountValue, discountType, taxRate, taxAmount, total,
-    items: order.items.map((i) => ({
-      productName: i.product.name,
-      productSku:  i.product.sku ?? null,
-      quantity:    i.quantity,
-      unitPrice:   i.price,
-      discount:    0,
-      total:       parseFloat((i.price * i.quantity).toFixed(2)),
-    })),
-    createdBy: { name: creator?.name ?? 'System' },
-  };
-
-  const pdfBuffer = await generateInvoicePDF(pdfData);
-  const stored    = await uploadPDF(pdfBuffer, invoiceNumber);
-
-  const invoice = await prisma.invoice.create({
+  // Step 1: Create invoice with a temp number to claim a unique DB id
+  const tempInvoice = await prisma.invoice.create({
     data: {
-      invoiceNumber,
+      invoiceNumber:   `TEMP-${randomUUID()}`,
       orderId,
       createdById,
       status:          'ISSUED',
@@ -120,19 +92,56 @@ export const createFromOrder = async (
       total,
       paymentMethod: order.paymentMethod,
       notes:         opts?.notes ?? null,
-      pdfUrl:        stored?.url      ?? null,
-      pdfPublicId:   stored?.publicId ?? null,
-      qrData:        `INV:${invoiceNumber}|TOTAL:${total}`,
       items: {
         create: order.items.map((i) => ({
           productName: i.product.name,
           productSku:  i.product.sku ?? null,
           quantity:    i.quantity,
           unitPrice:   i.price,
-          discount:    0,
+          discount:    i.discount,
           total:       parseFloat((i.price * i.quantity).toFixed(2)),
         })),
       },
+    },
+  });
+
+  // Step 2: Derive invoice number from the auto-assigned id (guaranteed unique)
+  const invoiceNumber = buildInvoiceNumber(tempInvoice.id);
+
+  // Step 3: Generate PDF with the real invoice number
+  const pdfData = {
+    invoiceNumber,
+    issuedAt:   new Date(),
+    status:     'ISSUED',
+    paymentMethod: order.paymentMethod,
+    notes:      opts?.notes ?? null,
+    customerName:    opts?.customerName    ?? null,
+    customerPhone:   opts?.customerPhone   ?? null,
+    customerEmail:   opts?.customerEmail   ?? null,
+    customerAddress: opts?.customerAddress ?? null,
+    subtotal, discountAmount, discountValue, discountType, taxRate, taxAmount, total,
+    items: order.items.map((i) => ({
+      productName: i.product.name,
+      productSku:  i.product.sku ?? null,
+      quantity:    i.quantity,
+      unitPrice:   i.price,
+      discount:    i.discount,
+      total:       parseFloat((i.price * i.quantity).toFixed(2)),
+    })),
+    createdBy: { name: creator?.name ?? 'System' },
+  };
+
+  const pdfBuffer = await generateInvoicePDF(pdfData);
+  const stored    = await uploadPDF(pdfBuffer, invoiceNumber);
+
+  // Step 4: Update invoice with real number and PDF URLs
+  const invoice = await prisma.invoice.update({
+    where: { id: tempInvoice.id },
+    data: {
+      invoiceNumber,
+      pdfUrl:      stored?.url      ?? null,
+      pdfPublicId: stored?.publicId ?? null,
+      qrData:      `INV:${invoiceNumber}|TOTAL:${total}`,
     },
     include: { items: true, createdBy: { select: { name: true } } },
   });
