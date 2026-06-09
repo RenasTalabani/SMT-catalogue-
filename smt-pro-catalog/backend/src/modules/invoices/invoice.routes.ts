@@ -10,42 +10,42 @@ router.use(protect as RequestHandler);
 // Generate invoice from an order
 router.post(
   '/order/:orderId',
-  restrictTo('admin', 'employee') as RequestHandler,
+  restrictTo('super_admin', 'admin', 'employee') as RequestHandler,
   invoiceController.createFromOrder as unknown as RequestHandler,
 );
 
 // List all invoices
 router.get(
   '/',
-  restrictTo('admin', 'employee') as RequestHandler,
+  restrictTo('super_admin', 'admin', 'employee') as RequestHandler,
   invoiceController.getAll as RequestHandler,
 );
 
 // Get single invoice detail
 router.get(
   '/:id',
-  restrictTo('admin', 'employee') as RequestHandler,
+  restrictTo('super_admin', 'admin', 'employee') as RequestHandler,
   invoiceController.getById as RequestHandler,
 );
 
 // Download PDF
 router.get(
   '/:id/pdf',
-  restrictTo('admin', 'employee') as RequestHandler,
+  restrictTo('super_admin', 'admin', 'employee') as RequestHandler,
   invoiceController.downloadPDF as unknown as RequestHandler,
 );
 
 // Preview PDF inline
 router.get(
   '/:id/preview',
-  restrictTo('admin', 'employee') as RequestHandler,
+  restrictTo('super_admin', 'admin', 'employee') as RequestHandler,
   invoiceController.previewPDF as unknown as RequestHandler,
 );
 
 // Mark invoice as paid
 router.patch(
   '/:id/paid',
-  restrictTo('admin') as RequestHandler,
+  restrictTo('super_admin', 'admin') as RequestHandler,
   invoiceController.markPaid as RequestHandler,
 );
 
