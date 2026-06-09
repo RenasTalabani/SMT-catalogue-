@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetcher } from '@/lib/api';
-import { useSocket, useSocketConnect } from '@/hooks/useSocket';
+import { useSocket } from '@/hooks/useSocket';
 import { SocketEvent, getSocket } from '@/lib/socket';
 import Header from '@/components/layout/Header';
 import Image from 'next/image';
@@ -15,7 +15,7 @@ import {
   CheckCircle2, XCircle, Box,
 } from 'lucide-react';
 
-// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface LowStockItem {
   id:       number;
@@ -60,7 +60,7 @@ interface Category {
   children: Category[];
 }
 
-// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function useLiveStatus() {
   return useSyncExternalStore(
@@ -91,7 +91,7 @@ const STATUS_COLOR: Record<string, string> = {
   CANCELLED: 'bg-danger/15 text-danger',
 };
 
-// â”€â”€ Sub-components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Sub-components ────────────────────────────────────────────────────────────
 
 function KpiCard({
   label, value, icon: Icon, iconBg, valueColor, isCurrency, loading,
@@ -109,7 +109,7 @@ function KpiCard({
       </div>
       <p className={clsx('text-2xl font-bold', valueColor)}>
         {loading
-          ? <span className="text-[#475569]">â€”</span>
+          ? <span className="text-[#475569]">—</span>
           : isCurrency
             ? `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
             : value.toLocaleString()}
@@ -174,16 +174,14 @@ function SkeletonCard() {
   );
 }
 
-// â”€â”€ Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const qc              = useQueryClient();
   const isLive          = useLiveStatus();
   const [activeCategory, setActiveCategory] = useState('All');
 
-  useSocketConnect();
-
-  // â”€â”€ Data fetching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Data fetching ────────────────────────────────────────────────────────
   const { data: stats, isLoading: statsLoading, dataUpdatedAt } = useQuery<DashboardStats>({
     queryKey:        ['dashboard', 'stats'],
     queryFn:         () => fetcher('/reports/dashboard'),
@@ -200,7 +198,7 @@ export default function DashboardPage() {
     queryFn:  () => fetcher<Category[]>('/categories?tree=true'),
   });
 
-  // â”€â”€ Socket: instant invalidation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Socket: instant invalidation ─────────────────────────────────────────
   useSocket(SocketEvent.orderCreated,   () => void qc.invalidateQueries({ queryKey: ['dashboard', 'stats'] }));
   useSocket(SocketEvent.orderUpdated,   () => void qc.invalidateQueries({ queryKey: ['dashboard', 'stats'] }));
   useSocket(SocketEvent.stockLow,       () => void qc.invalidateQueries({ queryKey: ['dashboard', 'stats'] }));
@@ -212,7 +210,7 @@ export default function DashboardPage() {
   useSocket(SocketEvent.productUpdated, () => void qc.invalidateQueries({ queryKey: ['dashboard', 'products'] }));
   useSocket(SocketEvent.productDeleted, () => void qc.invalidateQueries({ queryKey: ['dashboard', 'products'] }));
 
-  // â”€â”€ Derived data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Derived data ─────────────────────────────────────────────────────────
   const allProducts      = (productsData?.products ?? []).filter(p => p.isActive);
   const categoryNames    = ['All', ...flatCategories(categoryTree)];
   const filteredProducts = activeCategory === 'All'
@@ -236,12 +234,12 @@ export default function DashboardPage() {
 
       <div className="p-4 md:p-6 space-y-5">
 
-        {/* â”€â”€ Status bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── Status bar ──────────────────────────────────────────────── */}
         <div className="flex items-center justify-between">
           <p className="text-xs text-[#64748B]">
             {dataUpdatedAt
               ? `Updated ${new Date(dataUpdatedAt).toLocaleTimeString()}`
-              : 'Loadingâ€¦'}
+              : 'Loading…'}
           </p>
           <div className={clsx(
             'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium',
@@ -256,20 +254,20 @@ export default function DashboardPage() {
             ) : (
               <>
                 <WifiOff size={12} />
-                <span>Reconnectingâ€¦</span>
+                <span>Reconnecting…</span>
               </>
             )}
           </div>
         </div>
 
-        {/* â”€â”€ KPI Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── KPI Cards ───────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
           {kpis.map((kpi) => (
             <KpiCard key={kpi.label} {...kpi} loading={statsLoading} />
           ))}
         </div>
 
-        {/* â”€â”€ Category Pills â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── Category Pills ──────────────────────────────────────────── */}
         {categoryNames.length > 1 && (
           <div className="flex gap-2 overflow-x-auto pb-1" style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
             {categoryNames.map((cat) => {
@@ -303,7 +301,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* â”€â”€ Main grid: product feed + right panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        {/* ── Main grid: product feed + right panel ───────────────────── */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
 
           {/* Product Feed (2/3) */}
@@ -332,7 +330,7 @@ export default function DashboardPage() {
                 <Box size={32} className="text-[#334155]" />
                 <p className="text-sm text-[#94A3B8]">No products in this category</p>
                 <Link href="/products" className="text-xs text-primary hover:underline">
-                  Add products â†’
+                  Add products →
                 </Link>
               </div>
             ) : (
@@ -363,7 +361,7 @@ export default function DashboardPage() {
                   <Star size={13} className="text-yellow-400" />
                   Top Products
                 </h3>
-                <Link href="/products" className="text-xs text-primary hover:opacity-80">All â†’</Link>
+                <Link href="/products" className="text-xs text-primary hover:opacity-80">All →</Link>
               </div>
               <div className="divide-y divide-dark-border">
                 {topProducts.length === 0 ? (
@@ -412,7 +410,7 @@ export default function DashboardPage() {
               </div>
               <div className="divide-y divide-dark-border max-h-56 overflow-y-auto">
                 {statsLoading ? (
-                  <p className="px-4 py-6 text-xs text-center text-[#64748B]">Loadingâ€¦</p>
+                  <p className="px-4 py-6 text-xs text-center text-[#64748B]">Loading…</p>
                 ) : recentOrders.length === 0 ? (
                   <p className="px-4 py-6 text-xs text-center text-[#64748B]">No recent orders</p>
                 ) : recentOrders.map((order) => (
@@ -472,7 +470,7 @@ export default function DashboardPage() {
               </div>
               <div className="divide-y divide-dark-border max-h-52 overflow-y-auto">
                 {statsLoading ? (
-                  <p className="px-4 py-6 text-xs text-center text-[#64748B]">Loadingâ€¦</p>
+                  <p className="px-4 py-6 text-xs text-center text-[#64748B]">Loading…</p>
                 ) : lowStockItems.length === 0 ? (
                   <div className="px-4 py-5 text-center">
                     <Package size={22} className="mx-auto mb-1.5 text-success opacity-50" />
@@ -482,7 +480,7 @@ export default function DashboardPage() {
                   <div key={item.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-dark-card transition-colors">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-medium text-white">{item.name}</p>
-                      <p className="text-[10px] text-[#64748B]">{item.sku || 'â€”'}</p>
+                      <p className="text-[10px] text-[#64748B]">{item.sku || '—'}</p>
                     </div>
                     <span className={clsx(
                       'ml-2 flex-shrink-0 rounded-full px-2 py-0.5 text-xs font-bold',
