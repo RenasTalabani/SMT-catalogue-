@@ -50,6 +50,7 @@ export const create = async (req: Request, res: Response): Promise<void> => {
         name:          String(b['name']),
         description:   b['description']   ? String(b['description'])          : undefined,
         price:         Number(b['price']),
+        discountPrice: b['discountPrice'] != null && b['discountPrice'] !== '' ? Number(b['discountPrice']) : undefined,
         costPrice:     b['costPrice']      ? Number(b['costPrice'])            : undefined,
         quantity:      Number(b['quantity'] ?? 0),
         lowStockAlert: b['lowStockAlert']  ? Number(b['lowStockAlert'])        : undefined,
@@ -69,7 +70,7 @@ export const create = async (req: Request, res: Response): Promise<void> => {
 export const update = async (req: Request, res: Response): Promise<void> => {
   try {
     const allowed = [
-      'name', 'description', 'price', 'costPrice', 'quantity',
+      'name', 'description', 'price', 'discountPrice', 'costPrice', 'quantity',
       'lowStockAlert', 'category', 'categoryId', 'sku', 'barcode', 'unit', 'isActive',
     ] as const;
     const b = req.body as Record<string, unknown>;
@@ -77,7 +78,7 @@ export const update = async (req: Request, res: Response): Promise<void> => {
     for (const f of allowed) {
       if (b[f] !== undefined) {
         if (f === 'isActive') updates[f] = b[f] === true || b[f] === 'true';
-        else if (['price', 'costPrice', 'quantity', 'lowStockAlert', 'categoryId'].includes(f)) updates[f] = Number(b[f]);
+        else if (['price', 'discountPrice', 'costPrice', 'quantity', 'lowStockAlert', 'categoryId'].includes(f)) updates[f] = Number(b[f]);
         else updates[f] = b[f];
       }
     }
