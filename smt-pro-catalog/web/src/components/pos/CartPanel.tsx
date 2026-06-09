@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef } from 'react';
-import { X, Trash2, Plus, Minus, ShoppingCart, Loader2, Printer, Pencil } from 'lucide-react';
+import { X, Trash2, Plus, Minus, ShoppingCart, Loader2, Printer, Pencil, Tag } from 'lucide-react';
 import { useCartStore } from '@/store/cart.store';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -9,10 +9,24 @@ const PAYMENT_METHODS = ['CASH', 'CARD', 'TRANSFER', 'OTHER'];
 
 export default function CartPanel() {
   const { items, isOpen, closeCart, removeItem, updateQty, updatePrice, clear, total, itemCount } = useCartStore();
-  const [editingPriceId, setEditingPriceId] = useState<number | null>(null);
+
+  // Price editing state
+  const [editingPriceId,  setEditingPriceId]  = useState<number | null>(null);
   const [editingPriceVal, setEditingPriceVal] = useState('');
   const priceInputRef = useRef<HTMLInputElement>(null);
 
+  // Checkout form state
+  const [customerName,  setCustomerName]  = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [payment,       setPayment]       = useState('CASH');
+  const [notes,         setNotes]         = useState('');
+  const [discountType,  setDiscountType]  = useState<'FIXED' | 'PERCENTAGE'>('FIXED');
+  const [discountValue, setDiscountValue] = useState('');
+  const [loading,       setLoading]       = useState(false);
+
+  if (!isOpen) return null;
+
+  // ── Price edit helpers ──────────────────────────────────────────────────────
   const startEditPrice = (id: number, currentPrice: number) => {
     setEditingPriceId(id);
     setEditingPriceVal(String(currentPrice));
@@ -24,46 +38,43 @@ export default function CartPanel() {
     if (!isNaN(val) && val >= 0) updatePrice(id, parseFloat(val.toFixed(2)));
     setEditingPriceId(null);
   };
-  const [customerName,  setCustomerName]  = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [payment,       setPayment]       = useState('CASH');
-  const [notes,         setNotes]         = useState('');
-  const [discountType,  setDiscountType]  = useState<'FIXED' | 'PERCENTAGE'>('FIXED');
-  const [discountValue, setDiscountValue] = useState('');
-  const [loading,       setLoading]       = useState(false);
 
-  if (!isOpen) return null;
+  // ── Totals calculation ──────────────────────────────────────────────────────
+  // total (from store) = sum of salePrice × qty
+  const originalSubtotal  = parseFloat(items.reduce((s, i) => s + i.originalPrice * i.quantity, 0).toFixed(2));
+  const itemDiscountTotal = parseFloat((originalSubtotal - total).toFixed(2));
 
-  const discountNum    = parseFloat(discountValue) || 0;
-  const discountAmount = discountNum > 0
+  const cartDiscountNum    = parseFloat(discountValue) || 0;
+  const cartDiscountAmount = cartDiscountNum > 0
     ? discountType === 'PERCENTAGE'
-      ? parseFloat(((total * discountNum) / 100).toFixed(2))
-      : discountNum
+      ? parseFloat(((total * cartDiscountNum) / 100).toFixed(2))
+      : cartDiscountNum
     : 0;
-  const finalTotal = Math.max(0, parseFloat((total - discountAmount).toFixed(2)));
 
+  const finalTotal        = Math.max(0, parseFloat((total - cartDiscountAmount).toFixed(2)));
+  const totalSaved        = parseFloat((itemDiscountTotal + cartDiscountAmount).toFixed(2));
+
+  // ── Checkout ────────────────────────────────────────────────────────────────
   const checkout = async () => {
     if (items.length === 0) { toast.error('Cart is empty'); return; }
     setLoading(true);
     try {
-      // 1. Create order
       const orderRes = await api.post('/orders', {
-        items: items.map((i) => ({ productId: i.id, quantity: i.quantity, price: i.price })),
+        items:         items.map((i) => ({ productId: i.id, quantity: i.quantity, price: i.price })),
         paymentMethod: payment,
         notes:         notes || undefined,
-        discount:      discountAmount,
+        discount:      cartDiscountAmount,
         finalAmount:   finalTotal,
-        totalAmount:   total,
+        totalAmount:   originalSubtotal,
       });
       const order = orderRes.data.data;
 
-      // 2. Generate invoice — non-fatal if Invoice table not ready
       try {
         const invRes = await api.post(`/invoices/order/${order.id}`, {
           customerName:  customerName  || undefined,
           customerPhone: customerPhone || undefined,
           notes:         notes         || undefined,
-          ...(discountNum > 0 ? { discountType, discountValue: discountNum } : {}),
+          ...(cartDiscountNum > 0 ? { discountType, discountValue: cartDiscountNum } : {}),
         });
         const inv = invRes.data.data;
         toast.success(`Order #${order.id} — Invoice ${inv.invoiceNumber} created!`);
@@ -72,8 +83,7 @@ export default function CartPanel() {
         const token = localStorage.getItem('daraliraq_token') ?? '';
         window.open(`/api/invoices/${inv.id}/preview?token=${token}`, '_blank');
       } catch {
-        // Invoice creation failed (e.g. table not yet migrated) — order still saved
-        toast.success(`Order #${order.id} saved! (Invoice table not ready yet — run SQL migration in Supabase)`);
+        toast.success(`Order #${order.id} saved!`);
         clear();
         setCustomerName(''); setCustomerPhone(''); setNotes(''); setDiscountValue('');
       }
@@ -86,134 +96,180 @@ export default function CartPanel() {
 
   return (
     <>
-      {/* Backdrop */}
       <div className="fixed inset-0 z-40 bg-black/50" onClick={closeCart} />
 
-      {/* Panel */}
       <div className="fixed right-0 top-0 z-50 h-full w-full max-w-sm bg-dark-surface border-l border-dark-border flex flex-col shadow-2xl">
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-dark-border">
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-dark-border flex-shrink-0">
           <div className="flex items-center gap-2">
             <ShoppingCart size={18} className="text-primary" />
             <h2 className="font-bold text-white">Cart ({itemCount})</h2>
           </div>
-          <button type="button" onClick={closeCart} title="Close cart" aria-label="Close cart"
+          <button type="button" onClick={closeCart} title="Close cart"
             className="p-1.5 rounded-lg hover:bg-dark-card text-[#94A3B8] hover:text-white transition-colors">
             <X size={18} />
           </button>
         </div>
 
-        {/* Items */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+        {/* ── Items ── */}
+        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 text-[#94A3B8]">
               <ShoppingCart size={32} className="mb-2 opacity-40" />
               <p className="text-sm">Cart is empty</p>
               <p className="text-xs mt-1">Click Sell on any product</p>
             </div>
-          ) : items.map((item) => (
-            <div key={item.id} className="flex items-center gap-3 bg-dark-card rounded-xl p-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">{item.name}</p>
-                {/* Editable unit price */}
-                <div className="flex items-center gap-1 mt-0.5">
-                  {editingPriceId === item.id ? (
-                    <input
-                      ref={priceInputRef}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className="w-20 text-xs bg-dark-surface border border-primary rounded px-1.5 py-0.5 text-primary font-semibold focus:outline-none"
-                      value={editingPriceVal}
-                      onChange={(e) => setEditingPriceVal(e.target.value)}
-                      onBlur={() => commitEditPrice(item.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') commitEditPrice(item.id);
-                        if (e.key === 'Escape') setEditingPriceId(null);
-                      }}
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors group"
-                      title="Click to change price"
-                      onClick={() => startEditPrice(item.id, item.price)}
-                    >
-                      <span className="font-semibold">${item.price.toFixed(2)}</span>
-                      <Pencil size={9} className="opacity-0 group-hover:opacity-60 transition-opacity" />
+          ) : items.map((item) => {
+            const unitDiscount  = parseFloat((item.originalPrice - item.price).toFixed(2));
+            const hasDiscount   = unitDiscount > 0;
+            const discountPct   = hasDiscount
+              ? parseFloat(((unitDiscount / item.originalPrice) * 100).toFixed(1))
+              : 0;
+            const lineOriginal  = parseFloat((item.originalPrice * item.quantity).toFixed(2));
+            const lineSale      = parseFloat((item.price * item.quantity).toFixed(2));
+            const lineSaved     = parseFloat((unitDiscount * item.quantity).toFixed(2));
+
+            return (
+              <div key={item.id} className="bg-dark-card rounded-xl p-3 space-y-2">
+
+                {/* Row 1: name + qty + remove */}
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-semibold text-white flex-1 truncate">{item.name}</p>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button type="button" title="Decrease" onClick={() => updateQty(item.id, item.quantity - 1)}
+                      className="h-6 w-6 rounded-lg bg-dark-surface flex items-center justify-center hover:bg-primary/20 text-[#94A3B8] hover:text-primary transition-colors">
+                      <Minus size={10} />
                     </button>
-                  )}
-                  <span className="text-xs text-[#94A3B8]">each</span>
+                    <span className="text-sm font-bold text-white w-6 text-center">{item.quantity}</span>
+                    <button type="button" title="Increase" onClick={() => updateQty(item.id, item.quantity + 1)}
+                      className="h-6 w-6 rounded-lg bg-dark-surface flex items-center justify-center hover:bg-primary/20 text-[#94A3B8] hover:text-primary transition-colors">
+                      <Plus size={10} />
+                    </button>
+                  </div>
+                  <button type="button" title="Remove" onClick={() => removeItem(item.id)}
+                    className="p-1 rounded-lg hover:bg-danger/20 text-[#94A3B8] hover:text-danger transition-colors flex-shrink-0">
+                    <Trash2 size={13} />
+                  </button>
                 </div>
+
+                {/* Row 2: price edit + discount badge */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Original price (shown as strikethrough if discounted) */}
+                    {hasDiscount && (
+                      <span className="text-xs text-[#64748B] line-through">${item.originalPrice.toFixed(2)}</span>
+                    )}
+
+                    {/* Sale price (editable) */}
+                    {editingPriceId === item.id ? (
+                      <input
+                        ref={priceInputRef}
+                        type="number" min="0" step="0.01"
+                        className="w-20 text-xs bg-dark-surface border border-primary rounded px-1.5 py-0.5 text-primary font-bold focus:outline-none"
+                        value={editingPriceVal}
+                        onChange={(e) => setEditingPriceVal(e.target.value)}
+                        onBlur={() => commitEditPrice(item.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter')  commitEditPrice(item.id);
+                          if (e.key === 'Escape') setEditingPriceId(null);
+                        }}
+                      />
+                    ) : (
+                      <button type="button" title="Click to change price"
+                        onClick={() => startEditPrice(item.id, item.price)}
+                        className="flex items-center gap-1 group">
+                        <span className={`text-sm font-bold ${hasDiscount ? 'text-green-400' : 'text-primary'}`}>
+                          ${item.price.toFixed(2)}
+                        </span>
+                        <Pencil size={9} className="text-[#64748B] opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                    )}
+                    <span className="text-xs text-[#64748B]">each</span>
+
+                    {/* Discount % badge */}
+                    {hasDiscount && (
+                      <span className="inline-flex items-center gap-0.5 bg-green-500/15 text-green-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                        <Tag size={8} />
+                        -{discountPct}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Row 3: line totals */}
+                <div className="flex items-center justify-between pt-1 border-t border-dark-border/50">
+                  <div className="text-xs text-[#64748B]">
+                    {item.quantity} × ${item.price.toFixed(2)}
+                  </div>
+                  <div className="text-right">
+                    {hasDiscount && (
+                      <p className="text-[10px] text-[#64748B] line-through">${lineOriginal.toFixed(2)}</p>
+                    )}
+                    <p className="text-sm font-bold text-white">${lineSale.toFixed(2)}</p>
+                    {hasDiscount && (
+                      <p className="text-[10px] text-green-400">saved ${lineSaved.toFixed(2)}</p>
+                    )}
+                  </div>
+                </div>
+
               </div>
-              <div className="flex items-center gap-1.5">
-                <button type="button" title="Decrease quantity" aria-label="Decrease quantity"
-                  onClick={() => updateQty(item.id, item.quantity - 1)}
-                  className="h-6 w-6 rounded-lg bg-dark-surface flex items-center justify-center hover:bg-primary/20 text-[#94A3B8] hover:text-primary transition-colors">
-                  <Minus size={11} />
-                </button>
-                <span className="text-sm font-bold text-white w-5 text-center">{item.quantity}</span>
-                <button type="button" title="Increase quantity" aria-label="Increase quantity"
-                  onClick={() => updateQty(item.id, item.quantity + 1)}
-                  className="h-6 w-6 rounded-lg bg-dark-surface flex items-center justify-center hover:bg-primary/20 text-[#94A3B8] hover:text-primary transition-colors">
-                  <Plus size={11} />
-                </button>
-              </div>
-              <div className="w-14 text-right">
-                <p className="text-sm font-bold text-white">${(item.price * item.quantity).toFixed(2)}</p>
-              </div>
-              <button type="button" title="Remove item" aria-label="Remove item"
-                onClick={() => removeItem(item.id)}
-                className="p-1 rounded-lg hover:bg-danger/20 text-[#94A3B8] hover:text-danger transition-colors">
-                <Trash2 size={13} />
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        {/* Checkout form */}
-        <div className="border-t border-dark-border px-4 py-4 space-y-3">
-          {/* Totals summary */}
-          <div className="space-y-1">
-            {discountAmount > 0 && (
+        {/* ── Checkout form ── */}
+        <div className="border-t border-dark-border px-4 py-3 space-y-3 flex-shrink-0">
+
+          {/* Full price breakdown */}
+          <div className="bg-dark-card rounded-xl p-3 space-y-1.5 text-sm">
+            {itemDiscountTotal > 0 && (
               <>
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#94A3B8]">Subtotal</span>
-                  <span className="text-[#94A3B8]">${total.toFixed(2)}</span>
+                <div className="flex justify-between text-[#94A3B8]">
+                  <span>Original price</span>
+                  <span>${originalSubtotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-green-400">Discount</span>
-                  <span className="text-green-400">-${discountAmount.toFixed(2)}</span>
+                <div className="flex justify-between text-green-400">
+                  <span>Item discounts</span>
+                  <span>-${itemDiscountTotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-white">
+                  <span>Subtotal</span>
+                  <span>${total.toFixed(2)}</span>
                 </div>
               </>
             )}
-            <div className="flex justify-between items-center">
-              <span className="text-[#94A3B8] text-sm">Total</span>
+
+            {cartDiscountAmount > 0 && (
+              <div className="flex justify-between text-green-400">
+                <span>Extra discount</span>
+                <span>-${cartDiscountAmount.toFixed(2)}</span>
+              </div>
+            )}
+
+            <div className="flex justify-between items-center pt-1 border-t border-dark-border">
+              <span className="font-semibold text-white">Total</span>
               <span className="text-xl font-bold text-primary">${finalTotal.toFixed(2)}</span>
             </div>
+
+            {totalSaved > 0 && (
+              <div className="flex justify-between text-[10px] text-green-400 font-medium">
+                <span>Customer saves</span>
+                <span>${totalSaved.toFixed(2)}</span>
+              </div>
+            )}
           </div>
 
-          {/* Discount input */}
+          {/* Extra cart-level discount */}
           <div className="flex gap-2">
-            <select
-              className="input text-sm w-20 flex-shrink-0"
-              title="Discount type"
-              value={discountType}
-              onChange={(e) => setDiscountType(e.target.value as 'FIXED' | 'PERCENTAGE')}
-            >
-              <option value="FIXED">$</option>
-              <option value="PERCENTAGE">%</option>
+            <select className="input text-sm w-20 flex-shrink-0" title="Discount type"
+              value={discountType} onChange={(e) => setDiscountType(e.target.value as 'FIXED' | 'PERCENTAGE')}>
+              <option value="FIXED">$ off</option>
+              <option value="PERCENTAGE">% off</option>
             </select>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              className="input w-full text-sm"
-              placeholder="Discount (optional)"
-              value={discountValue}
-              onChange={(e) => setDiscountValue(e.target.value)}
-            />
+            <input type="number" min="0" step="0.01" className="input w-full text-sm"
+              placeholder="Extra discount on total (optional)"
+              value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} />
           </div>
 
           <input className="input w-full text-sm" placeholder="Customer name (optional)"
@@ -221,7 +277,8 @@ export default function CartPanel() {
           <input className="input w-full text-sm" placeholder="Phone (optional)"
             value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
 
-          <select className="input w-full text-sm" title="Payment method" aria-label="Payment method" value={payment} onChange={(e) => setPayment(e.target.value)}>
+          <select className="input w-full text-sm" title="Payment method" value={payment}
+            onChange={(e) => setPayment(e.target.value)}>
             {PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
 
@@ -234,6 +291,7 @@ export default function CartPanel() {
             {loading ? 'Processing…' : 'Checkout & Print Invoice'}
           </button>
         </div>
+
       </div>
     </>
   );
