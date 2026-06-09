@@ -159,7 +159,7 @@ app.use('/api/cart',              cartRoutes);
 app.use('/api/my-orders',         myOrdersRoutes);
 app.use('/api/reviews',           reviewRoutes);
 app.use('/api/dashboard',         dashboardRoutes);
-app.use('/api/shop',              customerAuthRoutes);
+app.use('/api/customer',          customerAuthRoutes);
 app.use('/api/delivery',          deliveryRoutes);
 app.use('/api/i18n',              i18nRoutes);
 app.use('/api/flash-sales',       flashSaleRoutes);
