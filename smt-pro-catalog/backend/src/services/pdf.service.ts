@@ -108,29 +108,61 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     y = 295;
     doc.rect(50, y, W, 22).fill(DARK);
 
-    const cols = { item: 50, sku: 220, qty: 310, price: 370, disc: 430, total: 490 };
+    // Columns: ITEM | SKU | QTY | ORIG | DISC% | SALE | TOTAL
+    const cols = { item: 50, sku: 185, qty: 272, orig: 308, disc: 358, sale: 403, total: 450 };
 
-    doc.fillColor('white').font('Helvetica-Bold').fontSize(8);
-    doc.text('ITEM',      cols.item  + 5, y + 7);
-    doc.text('SKU',       cols.sku   + 5, y + 7);
-    doc.text('QTY',       cols.qty   + 5, y + 7);
-    doc.text('PRICE',     cols.price + 5, y + 7);
-    doc.text('DISC',      cols.disc  + 5, y + 7);
-    doc.text('TOTAL',     cols.total + 5, y + 7);
+    doc.fillColor('white').font('Helvetica-Bold').fontSize(7.5);
+    doc.text('ITEM',       cols.item + 5, y + 7);
+    doc.text('SKU',        cols.sku  + 5, y + 7);
+    doc.text('QTY',        cols.qty  + 5, y + 7);
+    doc.text('ORIG',       cols.orig + 5, y + 7);
+    doc.text('DISC%',      cols.disc + 5, y + 7);
+    doc.text('SALE',       cols.sale + 5, y + 7);
+    doc.text('TOTAL',      cols.total + 5, y + 7);
 
     // ── Items rows ───────────────────────────────────────────────────────────
     y += 22;
     data.items.forEach((item, i) => {
+      const hasDiscount  = item.discount > 0;
+      const origPrice    = parseFloat((item.unitPrice + item.discount).toFixed(2));
+      const discountPct  = hasDiscount
+        ? parseFloat(((item.discount / origPrice) * 100).toFixed(1))
+        : 0;
+
       const rowBg = i % 2 === 0 ? '#FFFFFF' : '#F8FAFC';
       doc.rect(50, y, W, 22).fill(rowBg);
 
-      doc.fillColor(DARK).font('Helvetica').fontSize(8);
-      doc.text(item.productName.slice(0, 28), cols.item  + 5, y + 7, { width: 165 });
-      doc.text(item.productSku ?? '-',        cols.sku   + 5, y + 7);
-      doc.text(String(item.quantity),         cols.qty   + 5, y + 7);
-      doc.text(`$${item.unitPrice.toFixed(2)}`,    cols.price + 5, y + 7);
-      doc.text(`$${item.discount.toFixed(2)}`,     cols.disc  + 5, y + 7);
-      doc.text(`$${item.total.toFixed(2)}`,        cols.total + 5, y + 7);
+      doc.fillColor(DARK).font('Helvetica').fontSize(7.5);
+      doc.text(item.productName.slice(0, 24), cols.item + 5, y + 7, { width: 130 });
+      doc.text(item.productSku ?? '-',        cols.sku  + 5, y + 7, { width: 80 });
+      doc.text(String(item.quantity),         cols.qty  + 5, y + 7);
+
+      if (hasDiscount) {
+        // ORIG: show original price in grey with strikethrough line
+        doc.fillColor(GREY).font('Helvetica').fontSize(7.5)
+           .text(`$${origPrice.toFixed(2)}`, cols.orig + 5, y + 7);
+        const origTextWidth = doc.widthOfString(`$${origPrice.toFixed(2)}`);
+        doc.moveTo(cols.orig + 5, y + 11)
+           .lineTo(cols.orig + 5 + origTextWidth, y + 11)
+           .strokeColor(GREY).lineWidth(0.7).stroke();
+
+        // DISC%: show percentage in red/warning
+        doc.fillColor('#E53E3E').font('Helvetica-Bold').fontSize(7.5)
+           .text(`-${discountPct}%`, cols.disc + 5, y + 7);
+
+        // SALE: sale price in brand color
+        doc.fillColor(BRAND).font('Helvetica-Bold').fontSize(7.5)
+           .text(`$${item.unitPrice.toFixed(2)}`, cols.sale + 5, y + 7);
+      } else {
+        // No discount — show price only in SALE column, dash in ORIG and DISC
+        doc.fillColor(GREY).fontSize(7.5).text('-', cols.orig + 5, y + 7);
+        doc.fillColor(GREY).text('-', cols.disc + 5, y + 7);
+        doc.fillColor(DARK).font('Helvetica').fontSize(7.5)
+           .text(`$${item.unitPrice.toFixed(2)}`, cols.sale + 5, y + 7);
+      }
+
+      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(7.5)
+         .text(`$${item.total.toFixed(2)}`, cols.total + 5, y + 7);
 
       y += 22;
     });
