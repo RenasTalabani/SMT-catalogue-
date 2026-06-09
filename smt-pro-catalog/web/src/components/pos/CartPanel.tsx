@@ -153,8 +153,36 @@ export default function CartPanel() {
                   </button>
                 </div>
 
-                {/* Row 2: price edit + discount badge */}
-                <div className="flex items-center justify-between">
+                {/* Row 2: price toggle + edit */}
+                <div className="space-y-1.5">
+                  {/* Preset price toggle — shown when product has a discountPrice */}
+                  {item.discountPrice && item.discountPrice > 0 && (
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => updatePrice(item.id, item.originalPrice)}
+                        className={`text-[10px] px-2.5 py-1 rounded-lg border font-semibold transition-colors ${
+                          Math.abs(item.price - item.originalPrice) < 0.01
+                            ? 'bg-primary/20 border-primary text-primary'
+                            : 'border-dark-border text-[#64748B] hover:border-primary/40 hover:text-white'
+                        }`}
+                      >
+                        Regular ${item.originalPrice.toFixed(2)}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updatePrice(item.id, item.discountPrice!)}
+                        className={`text-[10px] px-2.5 py-1 rounded-lg border font-semibold transition-colors ${
+                          Math.abs(item.price - item.discountPrice) < 0.01
+                            ? 'bg-green-500/20 border-green-500 text-green-400'
+                            : 'border-dark-border text-[#64748B] hover:border-green-500/40 hover:text-green-400'
+                        }`}
+                      >
+                        Discount ${item.discountPrice.toFixed(2)}
+                      </button>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-2 flex-wrap">
                     {/* Original price (shown as strikethrough if discounted) */}
                     {hasDiscount && (
