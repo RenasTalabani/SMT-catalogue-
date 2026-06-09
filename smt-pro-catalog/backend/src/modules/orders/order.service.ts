@@ -78,8 +78,14 @@ export const create = async (userId: number, input: CreateOrderInput) => {
     if (product.quantity < item.quantity) throw new Error(`INSUFFICIENT_STOCK:${product.name}`);
   }
 
-  const totalAmount  = parseFloat(items.reduce((sum, item) => sum + (productMap[item.productId]?.price ?? 0) * item.quantity, 0).toFixed(2));
-  const finalAmount  = parseFloat((totalAmount - discount + tax).toFixed(2));
+  // totalAmount = catalog prices (original, for tracking)
+  // saleSubtotal = prices actually charged per item (after per-item price edits)
+  const totalAmount   = parseFloat(items.reduce((sum, item) => sum + (productMap[item.productId]?.price ?? 0) * item.quantity, 0).toFixed(2));
+  const saleSubtotal  = parseFloat(items.reduce((sum, item) => {
+    const salePrice = item.price ?? productMap[item.productId]?.price ?? 0;
+    return sum + salePrice * item.quantity;
+  }, 0).toFixed(2));
+  const finalAmount   = parseFloat((saleSubtotal - discount + tax).toFixed(2));
 
   const order = await prisma.$transaction(async (tx) => {
     for (const item of items) {
@@ -95,11 +101,17 @@ export const create = async (userId: number, input: CreateOrderInput) => {
         paymentMethod,
         notes: notes ?? null,
         items: {
-          create: items.map((item) => ({
-            productId: item.productId,
-            quantity:  item.quantity,
-            price:     productMap[item.productId]?.price ?? 0,
-          })),
+          create: items.map((item) => {
+            const catalogPrice = productMap[item.productId]?.price ?? 0;
+            const salePrice    = item.price ?? catalogPrice;
+            const unitDiscount = parseFloat(Math.max(0, catalogPrice - salePrice).toFixed(2));
+            return {
+              productId: item.productId,
+              quantity:  item.quantity,
+              price:     salePrice,
+              discount:  unitDiscount,
+            };
+          }),
         },
       },
       select: ORDER_SELECT,
