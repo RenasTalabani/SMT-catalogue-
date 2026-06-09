@@ -1,17 +1,18 @@
 import { create } from 'zustand';
 
 export interface CartItem {
-  id:       number;
-  name:     string;
-  price:    number;
-  quantity: number;
-  imageUrl?: string | null;
+  id:            number;
+  name:          string;
+  price:         number;   // current sale price (may be edited)
+  originalPrice: number;   // catalog price — never changes after add
+  quantity:      number;
+  imageUrl?:     string | null;
 }
 
 interface CartStore {
   items:           CartItem[];
   isOpen:          boolean;
-  addItem:         (product: Omit<CartItem, 'quantity'>) => void;
+  addItem:         (product: Omit<CartItem, 'quantity' | 'originalPrice'>) => void;
   removeItem:      (id: number) => void;
   updateQty:       (id: number, qty: number) => void;
   updatePrice:     (id: number, price: number) => void;
@@ -32,7 +33,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
       if (existing) {
         return { items: s.items.map((i) => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i), isOpen: true };
       }
-      return { items: [...s.items, { ...product, quantity: 1 }], isOpen: true };
+      return { items: [...s.items, { ...product, originalPrice: product.price, quantity: 1 }], isOpen: true };
     });
   },
 
