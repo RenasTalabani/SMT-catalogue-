@@ -1,6 +1,6 @@
 'use client';
-import { useState } from 'react';
-import { X, Trash2, Plus, Minus, ShoppingCart, Loader2, Printer } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { X, Trash2, Plus, Minus, ShoppingCart, Loader2, Printer, Pencil } from 'lucide-react';
 import { useCartStore } from '@/store/cart.store';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -8,14 +8,39 @@ import toast from 'react-hot-toast';
 const PAYMENT_METHODS = ['CASH', 'CARD', 'TRANSFER', 'OTHER'];
 
 export default function CartPanel() {
-  const { items, isOpen, closeCart, removeItem, updateQty, clear, total, itemCount } = useCartStore();
+  const { items, isOpen, closeCart, removeItem, updateQty, updatePrice, clear, total, itemCount } = useCartStore();
+  const [editingPriceId, setEditingPriceId] = useState<number | null>(null);
+  const [editingPriceVal, setEditingPriceVal] = useState('');
+  const priceInputRef = useRef<HTMLInputElement>(null);
+
+  const startEditPrice = (id: number, currentPrice: number) => {
+    setEditingPriceId(id);
+    setEditingPriceVal(String(currentPrice));
+    setTimeout(() => priceInputRef.current?.select(), 30);
+  };
+
+  const commitEditPrice = (id: number) => {
+    const val = parseFloat(editingPriceVal);
+    if (!isNaN(val) && val >= 0) updatePrice(id, parseFloat(val.toFixed(2)));
+    setEditingPriceId(null);
+  };
   const [customerName,  setCustomerName]  = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [payment,       setPayment]       = useState('CASH');
   const [notes,         setNotes]         = useState('');
+  const [discountType,  setDiscountType]  = useState<'FIXED' | 'PERCENTAGE'>('FIXED');
+  const [discountValue, setDiscountValue] = useState('');
   const [loading,       setLoading]       = useState(false);
 
   if (!isOpen) return null;
+
+  const discountNum    = parseFloat(discountValue) || 0;
+  const discountAmount = discountNum > 0
+    ? discountType === 'PERCENTAGE'
+      ? parseFloat(((total * discountNum) / 100).toFixed(2))
+      : discountNum
+    : 0;
+  const finalTotal = Math.max(0, parseFloat((total - discountAmount).toFixed(2)));
 
   const checkout = async () => {
     if (items.length === 0) { toast.error('Cart is empty'); return; }
@@ -25,9 +50,10 @@ export default function CartPanel() {
       const orderRes = await api.post('/orders', {
         items: items.map((i) => ({ productId: i.id, quantity: i.quantity, price: i.price })),
         paymentMethod: payment,
-        notes: notes || undefined,
-        finalAmount: total,
-        totalAmount: total,
+        notes:         notes || undefined,
+        discount:      discountAmount,
+        finalAmount:   finalTotal,
+        totalAmount:   total,
       });
       const order = orderRes.data.data;
 
@@ -37,18 +63,19 @@ export default function CartPanel() {
           customerName:  customerName  || undefined,
           customerPhone: customerPhone || undefined,
           notes:         notes         || undefined,
+          ...(discountNum > 0 ? { discountType, discountValue: discountNum } : {}),
         });
         const inv = invRes.data.data;
         toast.success(`Order #${order.id} — Invoice ${inv.invoiceNumber} created!`);
         clear();
-        setCustomerName(''); setCustomerPhone(''); setNotes('');
+        setCustomerName(''); setCustomerPhone(''); setNotes(''); setDiscountValue('');
         const token = localStorage.getItem('daraliraq_token') ?? '';
         window.open(`/api/invoices/${inv.id}/preview?token=${token}`, '_blank');
       } catch {
         // Invoice creation failed (e.g. table not yet migrated) — order still saved
         toast.success(`Order #${order.id} saved! (Invoice table not ready yet — run SQL migration in Supabase)`);
         clear();
-        setCustomerName(''); setCustomerPhone(''); setNotes('');
+        setCustomerName(''); setCustomerPhone(''); setNotes(''); setDiscountValue('');
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Checkout failed');
@@ -89,7 +116,36 @@ export default function CartPanel() {
             <div key={item.id} className="flex items-center gap-3 bg-dark-card rounded-xl p-3">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white truncate">{item.name}</p>
-                <p className="text-xs text-primary">${item.price.toFixed(2)} each</p>
+                {/* Editable unit price */}
+                <div className="flex items-center gap-1 mt-0.5">
+                  {editingPriceId === item.id ? (
+                    <input
+                      ref={priceInputRef}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="w-20 text-xs bg-dark-surface border border-primary rounded px-1.5 py-0.5 text-primary font-semibold focus:outline-none"
+                      value={editingPriceVal}
+                      onChange={(e) => setEditingPriceVal(e.target.value)}
+                      onBlur={() => commitEditPrice(item.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') commitEditPrice(item.id);
+                        if (e.key === 'Escape') setEditingPriceId(null);
+                      }}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors group"
+                      title="Click to change price"
+                      onClick={() => startEditPrice(item.id, item.price)}
+                    >
+                      <span className="font-semibold">${item.price.toFixed(2)}</span>
+                      <Pencil size={9} className="opacity-0 group-hover:opacity-60 transition-opacity" />
+                    </button>
+                  )}
+                  <span className="text-xs text-[#94A3B8]">each</span>
+                </div>
               </div>
               <div className="flex items-center gap-1.5">
                 <button type="button" title="Decrease quantity" aria-label="Decrease quantity"
@@ -118,9 +174,46 @@ export default function CartPanel() {
 
         {/* Checkout form */}
         <div className="border-t border-dark-border px-4 py-4 space-y-3">
-          <div className="flex justify-between text-sm mb-1">
-            <span className="text-[#94A3B8]">Total</span>
-            <span className="text-xl font-bold text-primary">${total.toFixed(2)}</span>
+          {/* Totals summary */}
+          <div className="space-y-1">
+            {discountAmount > 0 && (
+              <>
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#94A3B8]">Subtotal</span>
+                  <span className="text-[#94A3B8]">${total.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-green-400">Discount</span>
+                  <span className="text-green-400">-${discountAmount.toFixed(2)}</span>
+                </div>
+              </>
+            )}
+            <div className="flex justify-between items-center">
+              <span className="text-[#94A3B8] text-sm">Total</span>
+              <span className="text-xl font-bold text-primary">${finalTotal.toFixed(2)}</span>
+            </div>
+          </div>
+
+          {/* Discount input */}
+          <div className="flex gap-2">
+            <select
+              className="input text-sm w-20 flex-shrink-0"
+              title="Discount type"
+              value={discountType}
+              onChange={(e) => setDiscountType(e.target.value as 'FIXED' | 'PERCENTAGE')}
+            >
+              <option value="FIXED">$</option>
+              <option value="PERCENTAGE">%</option>
+            </select>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              className="input w-full text-sm"
+              placeholder="Discount (optional)"
+              value={discountValue}
+              onChange={(e) => setDiscountValue(e.target.value)}
+            />
           </div>
 
           <input className="input w-full text-sm" placeholder="Customer name (optional)"
