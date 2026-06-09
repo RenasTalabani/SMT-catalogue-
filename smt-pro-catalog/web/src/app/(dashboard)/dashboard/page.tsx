@@ -12,7 +12,7 @@ import { useSyncExternalStore } from 'react';
 import {
   Package, ShoppingCart, TrendingUp, AlertTriangle,
   Wifi, WifiOff, Clock, ArrowRight, Star,
-  CheckCircle2, XCircle, Box,
+  CheckCircle2, XCircle, Box, Archive,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -28,6 +28,7 @@ interface DashboardStats {
   totalProducts:   number;
   totalOrders:     number;
   totalRevenue:    number;
+  totalStockUnits: number;
   lowStockCount:   number;
   lowStockItems:   LowStockItem[];
   recentOrders:    Array<{ id: number; finalAmount: number; status: string; createdAt: string }>;
@@ -221,11 +222,12 @@ export default function DashboardPage() {
   const recentOrders     = stats?.recentOrders ?? [];
 
   const kpis = [
-    { label: "Today's Orders",   value: stats?.todayOrders   ?? 0, icon: Clock,          iconBg: 'bg-blue-500/20',   valueColor: 'text-blue-400',   isCurrency: false },
-    { label: 'Monthly Revenue',  value: stats?.totalRevenue  ?? 0, icon: TrendingUp,      iconBg: 'gradient-brand',   valueColor: 'text-primary',    isCurrency: true  },
-    { label: 'Total Products',   value: stats?.totalProducts ?? 0, icon: Package,         iconBg: 'bg-violet-500/20', valueColor: 'text-violet-400', isCurrency: false },
-    { label: 'Low Stock Alerts', value: stats?.lowStockCount ?? 0, icon: AlertTriangle,   iconBg: 'bg-warning/20',    valueColor: 'text-warning',    isCurrency: false },
-    { label: 'Pending Orders',   value: stats?.pendingOrders ?? 0, icon: ShoppingCart,    iconBg: 'bg-teal-500/20',   valueColor: 'text-teal-400',   isCurrency: false },
+    { label: "Today's Orders",    value: stats?.todayOrders     ?? 0, icon: Clock,         iconBg: 'bg-blue-500/20',    valueColor: 'text-blue-400',   isCurrency: false },
+    { label: 'Monthly Revenue',   value: stats?.totalRevenue    ?? 0, icon: TrendingUp,    iconBg: 'gradient-brand',    valueColor: 'text-primary',    isCurrency: true  },
+    { label: 'Total Products',    value: stats?.totalProducts   ?? 0, icon: Package,       iconBg: 'bg-violet-500/20',  valueColor: 'text-violet-400', isCurrency: false },
+    { label: 'Units in Stock',    value: stats?.totalStockUnits ?? 0, icon: Archive,       iconBg: 'bg-cyan-500/20',    valueColor: 'text-cyan-400',   isCurrency: false },
+    { label: 'Low Stock Alerts',  value: stats?.lowStockCount   ?? 0, icon: AlertTriangle, iconBg: 'bg-warning/20',     valueColor: 'text-warning',    isCurrency: false },
+    { label: 'Pending Orders',    value: stats?.pendingOrders   ?? 0, icon: ShoppingCart,  iconBg: 'bg-teal-500/20',    valueColor: 'text-teal-400',   isCurrency: false },
   ];
 
   return (
@@ -261,7 +263,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── KPI Cards ───────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
           {kpis.map((kpi) => (
             <KpiCard key={kpi.label} {...kpi} loading={statsLoading} />
           ))}
