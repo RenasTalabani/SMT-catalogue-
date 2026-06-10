@@ -189,9 +189,11 @@ export default function DashboardPage() {
     refetchInterval: 10_000,
   });
 
-  const { data: productsData, isLoading: productsLoading } = useQuery<ProductsResponse>({
-    queryKey: ['dashboard', 'products'],
-    queryFn:  () => fetcher('/products?limit=50'),
+  const { data: productsData, isLoading: productsLoading, isError: productsError, refetch: refetchProducts } = useQuery<ProductsResponse>({
+    queryKey:        ['dashboard', 'products'],
+    queryFn:         () => fetcher('/products?limit=50'),
+    refetchInterval: 30_000,
+    staleTime:       10_000,
   });
 
   const { data: categoryTree = [] } = useQuery<Category[]>({
@@ -326,6 +328,15 @@ export default function DashboardPage() {
             {productsLoading ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+              </div>
+            ) : productsError ? (
+              <div className="card flex flex-col items-center gap-3 py-14 text-center">
+                <AlertTriangle size={32} className="text-warning opacity-60" />
+                <p className="text-sm text-[#94A3B8]">Could not load products</p>
+                <button type="button" onClick={() => void refetchProducts()}
+                  className="text-xs text-primary hover:underline">
+                  Retry →
+                </button>
               </div>
             ) : filteredProducts.length === 0 ? (
               <div className="card flex flex-col items-center gap-3 py-14 text-center">
