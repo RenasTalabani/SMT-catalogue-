@@ -212,7 +212,7 @@ export default function DashboardPage() {
   useSocket(SocketEvent.productDeleted, () => void qc.invalidateQueries({ queryKey: ['dashboard', 'products'] }));
 
   // ── Derived data ─────────────────────────────────────────────────────────
-  const allProducts      = (productsData?.products ?? []).filter(p => p.isActive);
+  const allProducts      = productsData?.products ?? [];
   const categoryNames    = ['All', ...flatCategories(categoryTree)];
   const filteredProducts = activeCategory === 'All'
     ? allProducts
