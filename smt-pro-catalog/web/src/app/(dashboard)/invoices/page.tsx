@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { FileText, Download, Eye, Search, CheckCircle, Clock, XCircle, Printer } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { FileText, Download, Eye, Search, CheckCircle, Clock, XCircle, Printer, DollarSign, X } from 'lucide-react';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
 import Header from '@/components/layout/Header';
@@ -11,6 +11,8 @@ interface Invoice {
   invoiceNumber: string;
   status:        string;
   total:         number;
+  paidAmount:    number;
+  isLoan:        boolean;
   customerName:  string | null;
   paymentMethod: string;
   createdAt:     string;
@@ -32,8 +34,13 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
 };
 
 export default function InvoicesPage() {
-  const [search, setSearch] = useState('');
-  const [page, setPage]     = useState(1);
+  const [search, setSearch]               = useState('');
+  const [page, setPage]                   = useState(1);
+  const [payModal, setPayModal]           = useState<Invoice | null>(null);
+  const [payAmount, setPayAmount]         = useState('');
+  const [payNotes, setPayNotes]           = useState('');
+  const [payLoading, setPayLoading]       = useState(false);
+  const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ['invoices', page, search],
@@ -52,9 +59,76 @@ export default function InvoicesPage() {
     window.open(`/api/invoices/${id}/${mode}?token=${getToken()}`, '_blank');
   };
 
+  const openPayModal = (inv: Invoice) => {
+    setPayModal(inv);
+    setPayAmount('');
+    setPayNotes('');
+  };
+
+  const submitPayment = async () => {
+    if (!payModal) return;
+    const amt = parseFloat(payAmount);
+    if (!amt || amt <= 0) { toast.error('Enter a valid amount'); return; }
+    setPayLoading(true);
+    try {
+      await api.post(`/invoices/${payModal.id}/payment`, { amount: amt, notes: payNotes || undefined });
+      toast.success('Payment recorded!');
+      void queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      setPayModal(null);
+      setTimeout(() => {
+        window.open(`/api/invoices/${payModal.id}/preview?token=${getToken()}`, '_blank');
+      }, 300);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to record payment');
+    } finally {
+      setPayLoading(false);
+    }
+  };
+
+  const remaining = (inv: Invoice) => parseFloat((inv.total - (inv.paidAmount ?? 0)).toFixed(2));
+
   return (
     <div className="flex flex-col">
       <Header title="Invoices" />
+
+      {/* ── Payment modal ──────────────────────────────────────────────────── */}
+      {payModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="bg-dark-surface border border-dark-border rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-white text-base">Record Payment</h3>
+              <button type="button" onClick={() => setPayModal(null)}
+                className="p-1.5 rounded-lg hover:bg-dark-card text-[#94A3B8] hover:text-white transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="text-sm text-[#94A3B8] space-y-1">
+              <p>Invoice: <span className="text-primary font-mono font-bold">{payModal.invoiceNumber}</span></p>
+              <p>Customer: <span className="text-white">{payModal.customerName ?? 'Walk-in'}</span></p>
+              <p>Total: <span className="text-white font-bold">${payModal.total.toFixed(2)}</span>
+                 <span className="ml-2">Paid: <span className="text-green-400 font-bold">${(payModal.paidAmount ?? 0).toFixed(2)}</span></span></p>
+              <p className="text-red-400 font-bold text-base">Remaining: ${remaining(payModal).toFixed(2)}</p>
+            </div>
+            <input
+              type="number" min="0.01" step="0.01"
+              className="input w-full text-sm"
+              placeholder={`Amount (max $${remaining(payModal).toFixed(2)})`}
+              value={payAmount}
+              onChange={(e) => setPayAmount(e.target.value)}
+            />
+            <input
+              className="input w-full text-sm"
+              placeholder="Notes (optional)"
+              value={payNotes}
+              onChange={(e) => setPayNotes(e.target.value)}
+            />
+            <button type="button" onClick={submitPayment} disabled={payLoading}
+              className="btn-primary w-full flex items-center justify-center gap-2 py-2.5 disabled:opacity-50">
+              {payLoading ? 'Saving…' : 'Record Payment & Update Invoice'}
+            </button>
+          </div>
+        </div>
+      )}
       <div className="p-4 md:p-6 space-y-5">
 
       {/* Search */}
@@ -97,8 +171,21 @@ export default function InvoicesPage() {
                     {STATUS_ICONS[inv.status]}
                     {inv.status}
                   </span>
+                  {inv.isLoan && remaining(inv) > 0 && (
+                    <p className="text-[11px] text-red-400 font-bold mt-1">
+                      Owes ${remaining(inv).toFixed(2)}
+                    </p>
+                  )}
                 </div>
               </div>
+
+              {/* Loan record payment button */}
+              {inv.isLoan && remaining(inv) > 0 && (
+                <button type="button" onClick={() => openPayModal(inv)}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-red-500/15 text-red-400 hover:bg-red-500/25 py-2 text-sm font-medium transition-colors">
+                  <DollarSign size={14} /> Record Payment
+                </button>
+              )}
 
               {/* Action buttons — full width on mobile */}
               <div className="flex gap-2">
@@ -137,9 +224,16 @@ export default function InvoicesPage() {
                   <td className="px-4 py-3 font-mono text-primary font-medium">{inv.invoiceNumber}</td>
                   <td className="px-4 py-3 text-white">{inv.customerName ?? 'Walk-in'}</td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[inv.status] ?? 'bg-gray-500/20 text-gray-400'}`}>
-                      {STATUS_ICONS[inv.status]}{inv.status}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium w-fit ${STATUS_STYLES[inv.status] ?? 'bg-gray-500/20 text-gray-400'}`}>
+                        {STATUS_ICONS[inv.status]}{inv.status}
+                      </span>
+                      {inv.isLoan && remaining(inv) > 0 && (
+                        <span className="text-[10px] text-red-400 font-bold">
+                          Owes ${remaining(inv).toFixed(2)}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-white font-semibold">${inv.total.toFixed(2)}</td>
                   <td className="px-4 py-3 text-[#94A3B8]">{inv.paymentMethod}</td>
@@ -147,6 +241,12 @@ export default function InvoicesPage() {
                   <td className="px-4 py-3 text-[#94A3B8]">{new Date(inv.createdAt).toLocaleDateString()}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 justify-end">
+                      {inv.isLoan && remaining(inv) > 0 && (
+                        <button type="button" onClick={() => openPayModal(inv)}
+                          className="p-1.5 rounded-lg hover:bg-red-500/20 text-red-400 transition-colors" title="Record payment">
+                          <DollarSign size={15} />
+                        </button>
+                      )}
                       <button type="button" onClick={() => openPDF(inv.id, 'preview')}
                         className="p-1.5 rounded-lg hover:bg-dark-card text-[#94A3B8] hover:text-primary transition-colors" title="Preview">
                         <Eye size={15} />
