@@ -69,7 +69,7 @@ function drawLogo(doc: InstanceType<typeof PDFDocument>, lx: number, ly: number,
      .text('Dar AL Iraq', lx + 68 * s, ly + h * 0.35, { lineBreak: false });
 }
 
-// ── Data interface (unchanged — no logic modified) ────────────────────────────
+// ── Data interface ────────────────────────────────────────────────────────────
 interface InvoiceData {
   invoiceNumber:    string;
   issuedAt:         Date;
@@ -87,6 +87,9 @@ interface InvoiceData {
   taxRate:          number;
   discountValue:    number;
   discountType:     string;
+  isLoan?:          boolean;
+  paidAmount?:      number;
+  payments?:        Array<{ amount: number; notes?: string | null; paidAt: Date }>;
   items: Array<{
     productName: string;
     productSku?: string | null;
@@ -324,7 +327,72 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
       y += 14;
     }
 
-    // ── 8. NOTES ──────────────────────────────────────────────────────────────
+    // ── 8. LOAN / PAYMENT HISTORY ─────────────────────────────────────────────
+    if (data.isLoan) {
+      const paidAmt     = data.paidAmount ?? 0;
+      const remaining   = parseFloat((data.total - paidAmt).toFixed(2));
+      const payments    = data.payments ?? [];
+
+      y += 6;
+      doc.moveTo(L, y).lineTo(RE, y).strokeColor(LGREY).lineWidth(0.7).stroke();
+      y += 10;
+
+      doc.fillColor(BRAND).font('Helvetica-Bold').fontSize(8.5)
+         .text('INSTALLMENT / LOAN SUMMARY', L, y);
+      y += 14;
+
+      // Payment history rows
+      if (payments.length > 0) {
+        const PH_COL1 = L;
+        const PH_COL2 = L + 200;
+        const PH_COL3 = RE - 90;
+
+        doc.fillColor(GREY).font('Helvetica-Bold').fontSize(7.5)
+           .text('#', PH_COL1, y)
+           .text('Date', PH_COL2, y)
+           .text('Amount', PH_COL3, y, { align: 'right', width: 90 });
+        y += 12;
+
+        payments.forEach((pmt, idx) => {
+          const rowBg = idx % 2 === 0 ? '#F8FAFC' : WHITE;
+          doc.rect(L, y, W, 14).fill(rowBg);
+          const pmtDate = pmt.paidAt instanceof Date ? pmt.paidAt : new Date(pmt.paidAt);
+          const label   = pmt.notes ? `Payment ${idx + 1} — ${pmt.notes}` : `Payment ${idx + 1}`;
+          doc.fillColor(DARK).font('Helvetica').fontSize(7.5)
+             .text(label, PH_COL1 + 3, y + 3, { width: 196 });
+          doc.fillColor(GREY).font('Helvetica').fontSize(7.5)
+             .text(pmtDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }), PH_COL2 + 3, y + 3);
+          doc.fillColor(GREEN).font('Helvetica-Bold').fontSize(7.5)
+             .text(`$${pmt.amount.toFixed(2)}`, PH_COL3, y + 3, { align: 'right', width: 90 });
+          y += 14;
+        });
+        y += 4;
+      }
+
+      // Paid so far
+      doc.fillColor(GREY).font('Helvetica').fontSize(9)
+         .text('Total Paid:', L, y);
+      doc.fillColor(GREEN).font('Helvetica-Bold').fontSize(9)
+         .text(`$${paidAmt.toFixed(2)}`, L + 100, y);
+      y += 14;
+
+      // Remaining balance — prominent
+      if (remaining > 0) {
+        doc.rect(L, y, W, 24).fill('#FFF5F5');
+        doc.fillColor('#E53E3E').font('Helvetica-Bold').fontSize(10)
+           .text('REMAINING BALANCE:', L + 8, y + 7);
+        doc.fillColor('#E53E3E').font('Helvetica-Bold').fontSize(14)
+           .text(`$${remaining.toFixed(2)}`, RE - 100, y + 4, { align: 'right', width: 92 });
+        y += 32;
+      } else {
+        doc.rect(L, y, W, 20).fill('#F0FFF4');
+        doc.fillColor(GREEN).font('Helvetica-Bold').fontSize(10)
+           .text('FULLY PAID — Thank you!', L + 8, y + 5);
+        y += 28;
+      }
+    }
+
+    // ── 10. NOTES ─────────────────────────────────────────────────────────────
     if (data.notes) {
       y += 6;
       doc.moveTo(L, y).lineTo(RE, y).strokeColor(LGREY).lineWidth(0.5).stroke();
@@ -335,7 +403,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
       y += Math.max(14, Math.ceil(data.notes.length / 90) * 11) + 5;
     }
 
-    // ── 9. FOOTER ─────────────────────────────────────────────────────────────
+    // ── 11. FOOTER ────────────────────────────────────────────────────────────
     const footY = doc.page.height - T - 22;
     doc.rect(L, footY, W, 0.7).fill(LGREY);
     doc.fillColor(GREY).font('Helvetica').fontSize(7.5)
