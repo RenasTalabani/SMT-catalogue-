@@ -21,6 +21,13 @@ router.get(
   invoiceController.getAll as RequestHandler,
 );
 
+// Outstanding loans summary
+router.get(
+  '/loans',
+  restrictTo('super_admin', 'admin', 'employee') as RequestHandler,
+  invoiceController.getOutstandingLoans as RequestHandler,
+);
+
 // Get single invoice detail
 router.get(
   '/:id',
@@ -47,6 +54,13 @@ router.patch(
   '/:id/paid',
   restrictTo('super_admin', 'admin') as RequestHandler,
   invoiceController.markPaid as RequestHandler,
+);
+
+// Record a loan payment installment
+router.post(
+  '/:id/payment',
+  restrictTo('super_admin', 'admin', 'employee') as RequestHandler,
+  invoiceController.addPayment as unknown as RequestHandler,
 );
 
 export default router;
