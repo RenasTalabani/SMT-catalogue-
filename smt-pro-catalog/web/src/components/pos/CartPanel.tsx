@@ -21,13 +21,15 @@ export default function CartPanel() {
   const qtyInputRef = useRef<HTMLInputElement>(null);
 
   // Checkout form state
-  const [customerName,  setCustomerName]  = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [payment,       setPayment]       = useState('CASH');
-  const [notes,         setNotes]         = useState('');
-  const [discountType,  setDiscountType]  = useState<'FIXED' | 'PERCENTAGE'>('FIXED');
-  const [discountValue, setDiscountValue] = useState('');
-  const [loading,       setLoading]       = useState(false);
+  const [customerName,    setCustomerName]    = useState('');
+  const [customerPhone,   setCustomerPhone]   = useState('');
+  const [payment,         setPayment]         = useState('CASH');
+  const [notes,           setNotes]           = useState('');
+  const [discountType,    setDiscountType]    = useState<'FIXED' | 'PERCENTAGE'>('FIXED');
+  const [discountValue,   setDiscountValue]   = useState('');
+  const [isLoan,          setIsLoan]          = useState(false);
+  const [initialPayment,  setInitialPayment]  = useState('');
+  const [loading,         setLoading]         = useState(false);
 
   if (!isOpen) return null;
 
@@ -88,22 +90,27 @@ export default function CartPanel() {
       const order = orderRes.data.data;
 
       try {
+        const initialPmt = isLoan ? (parseFloat(initialPayment) || 0) : 0;
         const invRes = await api.post(`/invoices/order/${order.id}`, {
           customerName:  customerName  || undefined,
           customerPhone: customerPhone || undefined,
           notes:         notes         || undefined,
           ...(cartDiscountNum > 0 ? { discountType, discountValue: cartDiscountNum } : {}),
+          ...(isLoan ? { isLoan: true, initialPayment: initialPmt } : {}),
         });
         const inv = invRes.data.data;
-        toast.success(`Order #${order.id} — Invoice ${inv.invoiceNumber} created!`);
+        const loanMsg = isLoan ? ` (Loan — paid $${initialPmt.toFixed(2)})` : '';
+        toast.success(`Order #${order.id} — Invoice ${inv.invoiceNumber} created!${loanMsg}`);
         clear();
         setCustomerName(''); setCustomerPhone(''); setNotes(''); setDiscountValue('');
+        setIsLoan(false); setInitialPayment('');
         const token = localStorage.getItem('daraliraq_token') ?? '';
         window.open(`/api/invoices/${inv.id}/preview?token=${token}`, '_blank');
       } catch {
         toast.success(`Order #${order.id} saved!`);
         clear();
         setCustomerName(''); setCustomerPhone(''); setNotes(''); setDiscountValue('');
+        setIsLoan(false); setInitialPayment('');
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Checkout failed');
@@ -353,6 +360,39 @@ export default function CartPanel() {
 
           <textarea className="input w-full text-sm resize-none" rows={2} placeholder="Notes (optional)"
             value={notes} onChange={(e) => setNotes(e.target.value)} />
+
+          {/* Loan / installment toggle */}
+          <div className="bg-dark-card rounded-xl p-3 space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isLoan}
+                onChange={(e) => { setIsLoan(e.target.checked); if (!e.target.checked) setInitialPayment(''); }}
+                className="w-4 h-4 accent-primary"
+              />
+              <span className="text-sm font-semibold text-white">Loan / Installment</span>
+              <span className="text-[10px] text-[#94A3B8]">(customer pays later)</span>
+            </label>
+            {isLoan && (
+              <div className="space-y-1.5">
+                <p className="text-xs text-[#94A3B8]">
+                  Total: <span className="text-white font-bold">${finalTotal.toFixed(2)}</span>
+                  {parseFloat(initialPayment) > 0 && (
+                    <span className="ml-2 text-red-400 font-bold">
+                      Remaining: ${Math.max(0, finalTotal - (parseFloat(initialPayment) || 0)).toFixed(2)}
+                    </span>
+                  )}
+                </p>
+                <input
+                  type="number" min="0" step="0.01"
+                  className="input w-full text-sm"
+                  placeholder={`Initial payment (max $${finalTotal.toFixed(2)})`}
+                  value={initialPayment}
+                  onChange={(e) => setInitialPayment(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
 
           <button type="button" onClick={checkout} disabled={loading || items.length === 0}
             className="btn-primary w-full flex items-center justify-center gap-2 py-3 disabled:opacity-50">
