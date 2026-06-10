@@ -214,14 +214,14 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     const HDRR = 20;
     doc.rect(L, y, W, HDRR).fill(DARK);
     doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(7);
-    doc.text('#',     C.num  + 3, y + 7);
-    doc.text('ITEM',  C.name + 3, y + 7);
-    doc.text('SKU',   C.sku  + 3, y + 7);
-    doc.text('QTY',   C.qty  + 3, y + 7);
-    doc.text('UNIT',  C.unit + 3, y + 7);
-    doc.text('DISC%', C.disc + 3, y + 7);
-    doc.text('SALE',  C.sale + 3, y + 7);
-    doc.text('TOTAL', C.tot  + 3, y + 7, { align: 'right', width: RE - C.tot - 5 });
+    doc.text('#',          C.num  + 3, y + 7);
+    doc.text('ITEM',       C.name + 3, y + 7);
+    doc.text('SKU',        C.sku  + 3, y + 7);
+    doc.text('QTY',        C.qty  + 3, y + 7);
+    doc.text('UNIT PRICE', C.unit + 3, y + 7);
+    doc.text('DISC%',      C.disc + 3, y + 7);
+    doc.text('SALE PRICE', C.sale + 3, y + 7);
+    doc.text('LINE TOTAL', C.tot  + 3, y + 7, { align: 'right', width: RE - C.tot - 5 });
     y += HDRR;
 
     data.items.forEach((item, idx) => {
@@ -259,12 +259,14 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
         doc.fillColor(BRAND).font('Helvetica-Bold').fontSize(7.5)
            .text(`$${item.unitPrice.toFixed(2)}`, C.sale + 3, y + 5, { width: 56 });
       } else {
-        doc.fillColor(GREY).font('Helvetica').fontSize(7.5)
-           .text('—', C.unit + 3, y + 5);
+        // No discount: unit price IS the selling price — show it clearly in UNIT PRICE column
+        doc.fillColor(DARK).font('Helvetica').fontSize(7.5)
+           .text(`$${item.unitPrice.toFixed(2)}`, C.unit + 3, y + 5, { width: 56 });
         doc.fillColor(GREY).font('Helvetica').fontSize(7.5)
            .text('—', C.disc + 3, y + 5);
-        doc.fillColor(DARK).font('Helvetica').fontSize(7.5)
-           .text(`$${item.unitPrice.toFixed(2)}`, C.sale + 3, y + 5, { width: 56 });
+        // SALE PRICE same as unit price — no need to repeat it
+        doc.fillColor(GREY).font('Helvetica').fontSize(7.5)
+           .text('—', C.sale + 3, y + 5);
       }
 
       doc.fillColor(DARK).font('Helvetica-Bold').fontSize(7.5)
