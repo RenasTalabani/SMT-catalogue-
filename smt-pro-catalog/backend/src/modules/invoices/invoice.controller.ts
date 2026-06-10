@@ -7,6 +7,8 @@ const ERR: Record<string, { s: number; m: string }> = {
   ORDER_NOT_FOUND:         { s: 404, m: 'Order not found' },
   INVOICE_NOT_FOUND:       { s: 404, m: 'Invoice not found' },
   INVOICE_ALREADY_EXISTS:  { s: 409, m: 'Invoice already exists for this order' },
+  NOT_A_LOAN:              { s: 400, m: 'This invoice is not a loan/installment invoice' },
+  ALREADY_FULLY_PAID:      { s: 400, m: 'This invoice has already been fully paid' },
 };
 
 const resolve = (e: Error, res: Response): Response => {
@@ -20,6 +22,13 @@ export const createFromOrder = async (req: AuthRequest, res: Response): Promise<
     const orderId = parseInt(req.params['orderId']!);
     const { invoice } = await invoiceService.createFromOrder(orderId, req.user.id, req.body as Record<string, unknown> as Parameters<typeof invoiceService.createFromOrder>[2]);
     success(res, invoice, 'Invoice created', 201);
+  } catch (e) { resolve(e as Error, res); }
+};
+
+// GET /api/invoices/loans
+export const getOutstandingLoans = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    success(res, await invoiceService.getOutstandingLoans());
   } catch (e) { resolve(e as Error, res); }
 };
 
@@ -78,5 +87,18 @@ export const previewPDF = async (req: Request, res: Response): Promise<void> => 
 export const markPaid = async (req: Request, res: Response): Promise<void> => {
   try {
     success(res, await invoiceService.markPaid(parseInt(req.params['id']!)));
+  } catch (e) { resolve(e as Error, res); }
+};
+
+// POST /api/invoices/:id/payment
+export const addPayment = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id     = parseInt(req.params['id']!);
+    const body   = req.body as { amount?: unknown; notes?: unknown };
+    const amount = parseFloat(String(body.amount ?? '0'));
+    if (!amount || amount <= 0) { error(res, 'amount must be > 0', 400); return; }
+    const notes = typeof body.notes === 'string' ? body.notes : undefined;
+    const result = await invoiceService.addPayment(id, amount, notes, req.user.id);
+    success(res, result, 'Payment recorded');
   } catch (e) { resolve(e as Error, res); }
 };
