@@ -15,6 +15,11 @@ export default function CartPanel() {
   const [editingPriceVal, setEditingPriceVal] = useState('');
   const priceInputRef = useRef<HTMLInputElement>(null);
 
+  // Quantity editing state
+  const [editingQtyId,  setEditingQtyId]  = useState<number | null>(null);
+  const [editingQtyVal, setEditingQtyVal] = useState('');
+  const qtyInputRef = useRef<HTMLInputElement>(null);
+
   // Checkout form state
   const [customerName,  setCustomerName]  = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -37,6 +42,19 @@ export default function CartPanel() {
     const val = parseFloat(editingPriceVal);
     if (!isNaN(val) && val >= 0) updatePrice(id, parseFloat(val.toFixed(2)));
     setEditingPriceId(null);
+  };
+
+  // ── Quantity edit helpers ───────────────────────────────────────────────────
+  const startEditQty = (id: number, currentQty: number) => {
+    setEditingQtyId(id);
+    setEditingQtyVal(String(currentQty));
+    setTimeout(() => { qtyInputRef.current?.select(); }, 30);
+  };
+
+  const commitEditQty = (id: number) => {
+    const val = parseInt(editingQtyVal, 10);
+    if (!isNaN(val) && val >= 1) updateQty(id, val);
+    setEditingQtyId(null);
   };
 
   // ── Totals calculation ──────────────────────────────────────────────────────
@@ -141,7 +159,30 @@ export default function CartPanel() {
                       className="h-6 w-6 rounded-lg bg-dark-surface flex items-center justify-center hover:bg-primary/20 text-[#94A3B8] hover:text-primary transition-colors">
                       <Minus size={10} />
                     </button>
-                    <span className="text-sm font-bold text-white w-6 text-center">{item.quantity}</span>
+
+                    {editingQtyId === item.id ? (
+                      <input
+                        ref={qtyInputRef}
+                        type="number" min="1" step="1"
+                        className="w-14 h-6 text-xs bg-dark-surface border border-primary rounded px-1 text-white font-bold text-center focus:outline-none"
+                        value={editingQtyVal}
+                        onChange={(e) => setEditingQtyVal(e.target.value)}
+                        onBlur={() => commitEditQty(item.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter')  commitEditQty(item.id);
+                          if (e.key === 'Escape') setEditingQtyId(null);
+                        }}
+                      />
+                    ) : (
+                      <span
+                        title="Click to type quantity"
+                        onClick={() => startEditQty(item.id, item.quantity)}
+                        className="text-sm font-bold text-white w-8 text-center cursor-text select-none hover:text-primary transition-colors"
+                      >
+                        {item.quantity}
+                      </span>
+                    )}
+
                     <button type="button" title="Increase" onClick={() => updateQty(item.id, item.quantity + 1)}
                       className="h-6 w-6 rounded-lg bg-dark-surface flex items-center justify-center hover:bg-primary/20 text-[#94A3B8] hover:text-primary transition-colors">
                       <Plus size={10} />
