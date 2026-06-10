@@ -2,7 +2,8 @@
 builder = "DOCKERFILE"
 
 [deploy]
-startCommand = "npx prisma db push --accept-data-loss && node dist/server.js"
+preDeployCommand = "npx prisma db push --accept-data-loss"
+startCommand = "node dist/server.js"
 healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
