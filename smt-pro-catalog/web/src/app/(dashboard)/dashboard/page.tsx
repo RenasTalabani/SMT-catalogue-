@@ -12,7 +12,7 @@ import { useSyncExternalStore } from 'react';
 import {
   Package, ShoppingCart, TrendingUp, AlertTriangle,
   Wifi, WifiOff, Clock, ArrowRight, Star,
-  CheckCircle2, XCircle, Box, Archive,
+  CheckCircle2, XCircle, Box, Archive, DollarSign,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -59,6 +59,23 @@ interface Category {
   id:       number;
   name:     string;
   children: Category[];
+}
+
+interface OutstandingLoan {
+  id:            number;
+  invoiceNumber: string;
+  customerName:  string | null;
+  customerPhone: string | null;
+  total:         number;
+  paidAmount:    number;
+  remaining:     number;
+  createdAt:     string;
+}
+
+interface LoansData {
+  totalOwed: number;
+  count:     number;
+  loans:     OutstandingLoan[];
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -199,6 +216,12 @@ export default function DashboardPage() {
   const { data: categoryTree = [] } = useQuery<Category[]>({
     queryKey: ['categories'],
     queryFn:  () => fetcher<Category[]>('/categories?tree=true'),
+  });
+
+  const { data: loansData } = useQuery<LoansData>({
+    queryKey:        ['dashboard', 'loans'],
+    queryFn:         () => fetcher('/invoices/loans'),
+    refetchInterval: 30_000,
   });
 
   // ── Socket: instant invalidation ─────────────────────────────────────────
@@ -366,6 +389,45 @@ export default function DashboardPage() {
 
           {/* Right Panel (1/3) */}
           <div className="space-y-4">
+
+            {/* Outstanding Loans */}
+            {loansData && loansData.count > 0 && (
+              <div className="card overflow-hidden border border-red-500/30">
+                <div className="flex items-center justify-between border-b border-dark-border px-4 py-3 bg-red-500/10">
+                  <h3 className="text-sm font-semibold text-red-400 flex items-center gap-2">
+                    <DollarSign size={13} className="text-red-400" />
+                    Outstanding Loans
+                  </h3>
+                  <div className="text-right">
+                    <span className="text-xs font-bold text-red-400">${loansData.totalOwed.toFixed(2)} owed</span>
+                    <p className="text-[10px] text-[#94A3B8]">{loansData.count} customer{loansData.count !== 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+                <div className="divide-y divide-dark-border max-h-52 overflow-y-auto">
+                  {loansData.loans.map((loan) => (
+                    <Link
+                      key={loan.id}
+                      href="/invoices"
+                      className="flex items-center justify-between px-4 py-2.5 hover:bg-dark-card transition-colors group"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-semibold text-white">
+                          {loan.customerName ?? 'Walk-in'}
+                        </p>
+                        <p className="text-[10px] text-[#64748B] font-mono">{loan.invoiceNumber}</p>
+                        {loan.customerPhone && (
+                          <p className="text-[10px] text-[#64748B]">{loan.customerPhone}</p>
+                        )}
+                      </div>
+                      <div className="text-right ml-2 flex-shrink-0">
+                        <p className="text-xs font-bold text-red-400">${loan.remaining.toFixed(2)}</p>
+                        <p className="text-[10px] text-[#64748B]">of ${loan.total.toFixed(2)}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Top Products */}
             <div className="card overflow-hidden">
