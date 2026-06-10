@@ -15,9 +15,9 @@ export const getDashboard = async () => {
   const [
     totalProducts, totalOrders, totalUsers,
     todayOrders, completedOrders, pendingOrders, cancelledOrders,
-    revenueAgg, inventoryAgg, lowStockCount, recentOrders, lowStockItems,
+    revenueAgg, inventoryAgg, recentOrders, allActiveForLowStock,
   ] = await Promise.all([
-    prisma.product.count(),
+    prisma.product.count({ where: { deletedAt: null } }),
     prisma.order.count(),
     prisma.user.count(),
     prisma.order.count({ where: { createdAt: { gte: today } } }),
@@ -25,20 +25,24 @@ export const getDashboard = async () => {
     prisma.order.count({ where: { status: 'PENDING' } }),
     prisma.order.count({ where: { status: 'CANCELLED' } }),
     prisma.order.aggregate({ where: { status: 'COMPLETED' }, _sum: { totalAmount: true } }),
-    prisma.product.aggregate({ _sum: { quantity: true } }),
-    prisma.product.count({ where: { quantity: { lte: 5 } } }),
+    prisma.product.aggregate({ where: { deletedAt: null }, _sum: { quantity: true } }),
     prisma.order.findMany({
       orderBy: { createdAt: 'desc' },
       take:    10,
       select:  { id: true, finalAmount: true, status: true, createdAt: true },
     }),
     prisma.product.findMany({
-      where:   { quantity: { lte: 5 } },
-      orderBy: { quantity: 'asc' },
-      take:    10,
-      select:  { id: true, name: true, sku: true, quantity: true },
+      where:   { deletedAt: null, isActive: true },
+      select:  { id: true, name: true, sku: true, quantity: true, lowStockAlert: true },
     }),
   ]);
+
+  // Use each product's own lowStockAlert threshold (not a hardcoded 5)
+  const lowStockProducts = allActiveForLowStock
+    .filter((p) => p.quantity <= p.lowStockAlert)
+    .sort((a, b) => a.quantity - b.quantity);
+  const lowStockCount = lowStockProducts.length;
+  const lowStockItems = lowStockProducts.slice(0, 10);
 
   const result = {
     totalProducts, totalOrders, totalUsers,
