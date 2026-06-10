@@ -1,45 +1,72 @@
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
-import https from 'https';
-import http from 'http';
-
-// ── Company branding — configure via Railway environment variables ─────────────
-const CO = {
-  name:    process.env['COMPANY_NAME']     ?? 'DaralIraq',
-  tagline: process.env['COMPANY_TAGLINE']  ?? 'Enterprise Inventory & Sales Platform',
-  phone:   process.env['COMPANY_PHONE']    ?? '',
-  address: process.env['COMPANY_ADDRESS']  ?? '',
-  email:   process.env['COMPANY_EMAIL']    ?? '',
-  website: process.env['COMPANY_WEBSITE']  ?? '',
-  logoUrl: process.env['COMPANY_LOGO_URL'] ?? '',
-};
 
 // ── Palette ───────────────────────────────────────────────────────────────────
-const BRAND = '#6C5CE7';
-const DARK  = '#1A1A2E';
-const GREY  = '#64748B';
-const LGREY = '#F1F5F9';
-const GREEN = '#10B981';
-const RED   = '#E53E3E';
-const WHITE = '#FFFFFF';
+const BRAND  = '#6C5CE7';
+const DARK   = '#1A1A2E';
+const GREY   = '#64748B';
+const LGREY  = '#F1F5F9';
+const GREEN  = '#10B981';
+const RED    = '#E53E3E';
+const WHITE  = '#FFFFFF';
 
-// ── Logo fetch (best-effort, 4 s timeout) ────────────────────────────────────
-async function fetchBuffer(url: string): Promise<Buffer | null> {
-  if (!url) return null;
-  return new Promise((res) => {
-    try {
-      const mod = url.startsWith('https') ? https : http;
-      const req = mod.get(url, { timeout: 4000 }, (r) => {
-        if ((r.statusCode ?? 999) >= 400) { res(null); return; }
-        const parts: Buffer[] = [];
-        r.on('data',  (d: Buffer) => parts.push(d));
-        r.on('end',   () => res(Buffer.concat(parts)));
-        r.on('error', () => res(null));
-      });
-      req.on('error',   () => res(null));
-      req.on('timeout', () => { req.destroy(); res(null); });
-    } catch { res(null); }
-  });
+// ── Dar AL Iraq brand palette ─────────────────────────────────────────────────
+const LOGO_GOLD = '#C8851B';  // palm fronds & trunks
+const LOGO_DGRN = '#1A6E38'; // green dome cap
+const LOGO_SAGE = '#B0D4B8'; // "Dar AL Iraq" text on dark header
+
+// ── Vector logo: Dar AL Iraq palm tree ───────────────────────────────────────
+// Draws the full horizontal logo (icon + text) at (lx, ly) with given height.
+// Design coordinate system: 100 units tall; scale = h / 100.
+function drawLogo(doc: InstanceType<typeof PDFDocument>, lx: number, ly: number, h: number): void {
+  const s   = h / 100;
+  const ICX = lx + 32 * s;  // palm icon center-x
+
+  // ── Green dome (arch at top center) ──────────────────────────────────────
+  doc.fillColor(LOGO_DGRN)
+     .moveTo(ICX - 12 * s, ly + 20 * s)
+     .bezierCurveTo(ICX - 12 * s, ly + 4 * s, ICX - 2 * s, ly, ICX, ly)
+     .bezierCurveTo(ICX + 2 * s, ly, ICX + 12 * s, ly + 4 * s, ICX + 12 * s, ly + 20 * s)
+     .closePath()
+     .fill();
+
+  // ── Palm fronds (5 ellipses rotated around common base) ──────────────────
+  doc.fillColor(LOGO_GOLD);
+  const baseY = ly + 52 * s;
+
+  const frond = (angleDeg: number, length: number, width: number) => {
+    const halfLen = (length / 2) * s;
+    const halfWid = (width / 2) * s;
+    doc.save()
+       .rotate(angleDeg, { origin: [ICX, baseY] })
+       .ellipse(ICX, baseY - halfLen, halfWid, halfLen)
+       .fill()
+       .restore();
+    doc.fillColor(LOGO_GOLD); // re-apply after restore
+  };
+
+  frond(   0, 54, 7.5); // center frond
+  frond( -26, 50, 6.5); // left inner
+  frond( -52, 42, 5.5); // left outer
+  frond(  26, 50, 6.5); // right inner
+  frond(  52, 42, 5.5); // right outer
+
+  // ── Trunks (3 vertical bars) ──────────────────────────────────────────────
+  doc.fillColor(LOGO_GOLD);
+  const tTop = ly + 50 * s;
+  const tH   = 48 * s;
+  const tW   = 4.5 * s;
+
+  doc.rect(ICX - tW / 2,          tTop,          tW, tH).fill();   // center
+  doc.rect(ICX - 20 * s - tW / 2, tTop + 3 * s,  tW, tH - 3 * s).fill();  // left
+  doc.rect(ICX + 20 * s - tW / 2, tTop + 3 * s,  tW, tH - 3 * s).fill();  // right
+
+  // ── "Dar AL Iraq" italic text ─────────────────────────────────────────────
+  const fontSize = h * 0.33;
+  doc.fillColor(LOGO_SAGE)
+     .font('Times-Italic')
+     .fontSize(fontSize)
+     .text('Dar AL Iraq', lx + 68 * s, ly + h * 0.35, { lineBreak: false });
 }
 
 // ── Data interface (unchanged — no logic modified) ────────────────────────────
@@ -73,15 +100,12 @@ interface InvoiceData {
 
 // ── PDF generator ─────────────────────────────────────────────────────────────
 export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
-  const [qrBuf, logoBuf] = await Promise.all([
-    QRCode.toBuffer(
-      `INV:${data.invoiceNumber}|TOTAL:${data.total}|DATE:${data.issuedAt.toISOString().slice(0, 10)}`,
-      { width: 60, margin: 1, color: { dark: '#000000', light: '#FFFFFF' } },
-    ),
-    fetchBuffer(CO.logoUrl),
-  ]);
+  const qrBuf = await QRCode.toBuffer(
+    `INV:${data.invoiceNumber}|TOTAL:${data.total}|DATE:${data.issuedAt.toISOString().slice(0, 10)}`,
+    { width: 60, margin: 1, color: { dark: '#000000', light: '#FFFFFF' } },
+  );
 
-  // Pre-compute discount figures (display only — no business logic)
+  // Pre-compute discount figures (display only)
   const itemDiscTotal = parseFloat(data.items.reduce((s, i) => s + i.discount * i.quantity, 0).toFixed(2));
   const originalTotal = parseFloat((data.subtotal + itemDiscTotal).toFixed(2));
   const customerSaves = parseFloat((itemDiscTotal + data.discountAmount).toFixed(2));
@@ -89,7 +113,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   return new Promise<Buffer>((resolvePDF, rejectPDF) => {
     const L   = 35;   // left/right margin
     const T   = 35;   // top/bottom margin
-    const QRS = 60;   // QR code size (points)
+    const QRS = 60;   // QR code size
     const ROW = 18;   // item row height
 
     const doc = new PDFDocument({
@@ -102,43 +126,27 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     doc.on('end',   () => resolvePDF(Buffer.concat(chunks)));
     doc.on('error', rejectPDF);
 
-    const W  = doc.page.width - L * 2;   // usable width ≈ 525
-    const RE = L + W;                     // right edge ≈ 560
+    const W  = doc.page.width - L * 2;  // ≈ 525
+    const RE = L + W;                    // right edge ≈ 560
 
     let y = T;
 
-    // ── 1. HEADER BAR ─────────────────────────────────────────────────────────
-    const HDR_H = 58;
+    // ── 1. HEADER (logo left, INVOICE right) ──────────────────────────────────
+    const HDR_H  = 70;
+    const LOGO_H = HDR_H - 16; // 54px logo
     doc.rect(L, y, W, HDR_H).fill(DARK);
 
-    // Logo (left, optional)
-    let logoEndX = L + 10;
-    if (logoBuf) {
-      try {
-        doc.image(logoBuf, L + 10, y + 7, { height: 44 });
-        logoEndX = L + 76;
-      } catch { logoEndX = L + 10; }
-    }
+    drawLogo(doc, L + 8, y + 8, LOGO_H);
 
-    // Company name & tagline (left side)
-    const nameFits = W * 0.52 - (logoEndX - L);
-    doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(13)
-       .text(CO.name, logoEndX, y + 10, { width: nameFits });
-    if (CO.tagline) {
-      doc.fillColor('#94A3B8').font('Helvetica').fontSize(7)
-         .text(CO.tagline, logoEndX, y + 27, { width: nameFits });
-    }
-
-    // "INVOICE" + number (right side)
-    doc.fillColor(BRAND).font('Helvetica-Bold').fontSize(20)
-       .text('INVOICE', L, y + 9, { align: 'right', width: W - 8 });
+    doc.fillColor(BRAND).font('Helvetica-Bold').fontSize(22)
+       .text('INVOICE', L, y + 14, { align: 'right', width: W - 10 });
     doc.fillColor('#94A3B8').font('Helvetica').fontSize(8)
-       .text(data.invoiceNumber, L, y + 33, { align: 'right', width: W - 8 });
+       .text(data.invoiceNumber, L, y + 40, { align: 'right', width: W - 10 });
 
     y += HDR_H + 10;
 
-    // ── 2. META STRIP + QR CODE ───────────────────────────────────────────────
-    const qrX   = RE - QRS;
+    // ── 2. META STRIP + QR ────────────────────────────────────────────────────
+    const qrX  = RE - QRS;
     const metaW = qrX - L - 8;
     const colW  = Math.floor(metaW / 4);
 
@@ -154,7 +162,6 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
       doc.fillColor(DARK).font('Helvetica').fontSize(8.5)
          .text(m.value, mx, y + 10, { width: colW - 6 });
     });
-
     doc.image(qrBuf, qrX, y - 2, { width: QRS });
 
     y += Math.max(30, QRS + 4) + 4;
@@ -163,85 +170,47 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     doc.moveTo(L, y).lineTo(RE, y).strokeColor(LGREY).lineWidth(0.7).stroke();
     y += 8;
 
-    // ── 4. BILL TO / COMPANY FROM (two columns) ───────────────────────────────
-    const COL_W  = Math.floor((W - 24) / 2);
-    const COL2_X = L + COL_W + 24;
-    let   leftY  = y;
-    let   rightY = y;
-
-    // Left: customer info
-    doc.fillColor(BRAND).font('Helvetica-Bold').fontSize(7).text('BILL TO', L, leftY);
-    leftY += 11;
+    // ── 4. BILL TO ────────────────────────────────────────────────────────────
+    doc.fillColor(BRAND).font('Helvetica-Bold').fontSize(7).text('BILL TO', L, y);
+    y += 11;
     doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10)
-       .text(data.customerName ?? 'Walk-in Customer', L, leftY, { width: COL_W });
-    leftY += 14;
+       .text(data.customerName ?? 'Walk-in Customer', L, y, { width: W / 2 });
+    y += 14;
     if (data.customerPhone) {
       doc.fillColor(GREY).font('Helvetica').fontSize(8)
-         .text(`Tel: ${data.customerPhone}`, L, leftY, { width: COL_W });
-      leftY += 11;
+         .text(`Tel: ${data.customerPhone}`, L, y, { width: W / 2 });
+      y += 11;
     }
     if (data.customerEmail) {
       doc.fillColor(GREY).font('Helvetica').fontSize(8)
-         .text(`Email: ${data.customerEmail}`, L, leftY, { width: COL_W });
-      leftY += 11;
+         .text(`Email: ${data.customerEmail}`, L, y, { width: W / 2 });
+      y += 11;
     }
     if (data.customerAddress) {
       doc.fillColor(GREY).font('Helvetica').fontSize(8)
-         .text(data.customerAddress, L, leftY, { width: COL_W });
-      leftY += 11;
+         .text(data.customerAddress, L, y, { width: W / 2 });
+      y += 11;
     }
-
-    // Right: company info (only shown when at least one field is set)
-    const hasCompanyInfo = !!(CO.address || CO.phone || CO.email || CO.website);
-    if (hasCompanyInfo) {
-      doc.fillColor(BRAND).font('Helvetica-Bold').fontSize(7).text('FROM', COL2_X, rightY);
-      rightY += 11;
-      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10)
-         .text(CO.name, COL2_X, rightY, { width: COL_W });
-      rightY += 14;
-      if (CO.address) {
-        doc.fillColor(GREY).font('Helvetica').fontSize(8)
-           .text(CO.address, COL2_X, rightY, { width: COL_W });
-        rightY += 11;
-      }
-      if (CO.phone) {
-        doc.fillColor(GREY).font('Helvetica').fontSize(8)
-           .text(`Tel: ${CO.phone}`, COL2_X, rightY, { width: COL_W });
-        rightY += 11;
-      }
-      if (CO.email) {
-        doc.fillColor(GREY).font('Helvetica').fontSize(8)
-           .text(CO.email, COL2_X, rightY, { width: COL_W });
-        rightY += 11;
-      }
-      if (CO.website) {
-        doc.fillColor(GREY).font('Helvetica').fontSize(8)
-           .text(CO.website, COL2_X, rightY, { width: COL_W });
-        rightY += 11;
-      }
-    }
-
-    y = Math.max(leftY, rightY) + 10;
+    y += 10;
 
     // ── 5. DIVIDER ────────────────────────────────────────────────────────────
     doc.moveTo(L, y).lineTo(RE, y).strokeColor(LGREY).lineWidth(0.7).stroke();
     y += 8;
 
     // ── 6. ITEMS TABLE ────────────────────────────────────────────────────────
-    // Column left-edge positions  (L=35, RE=560, W=525)
+    // Column left-edge positions (L=35, RE=560, W=525)
     // #:20 | ITEM:148 | SKU:62 | QTY:28 | UNIT:60 | DISC%:40 | SALE:60 | TOTAL:107  = 525 ✓
     const C = {
-      num:  L,          // x=35
-      name: L + 20,     // x=55
-      sku:  L + 168,    // x=203
-      qty:  L + 230,    // x=265
-      unit: L + 258,    // x=293
-      disc: L + 318,    // x=353
-      sale: L + 358,    // x=393
-      tot:  L + 418,    // x=453  (width to RE: 560-453=107)
+      num:  L,        // x=35
+      name: L + 20,   // x=55
+      sku:  L + 168,  // x=203
+      qty:  L + 230,  // x=265
+      unit: L + 258,  // x=293
+      disc: L + 318,  // x=353
+      sale: L + 358,  // x=393
+      tot:  L + 418,  // x=453
     };
 
-    // Header row
     const HDRR = 20;
     doc.rect(L, y, W, HDRR).fill(DARK);
     doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(7);
@@ -255,7 +224,6 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     doc.text('TOTAL', C.tot  + 3, y + 7, { align: 'right', width: RE - C.tot - 5 });
     y += HDRR;
 
-    // Item rows
     data.items.forEach((item, idx) => {
       const hasDsc    = item.discount > 0;
       const origPrice = parseFloat((item.unitPrice + item.discount).toFixed(2));
@@ -307,7 +275,6 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
       y += ROW;
     });
 
-    // Table bottom border
     doc.moveTo(L, y).lineTo(RE, y).strokeColor(LGREY).lineWidth(0.7).stroke();
     y += 14;
 
@@ -330,6 +297,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
       totRow('Item Discounts', `-$${itemDiscTotal.toFixed(2)}`, false, GREEN);
     }
     totRow('Subtotal', `$${data.subtotal.toFixed(2)}`);
+
     if (data.discountAmount > 0) {
       const dLabel = data.discountType === 'PERCENTAGE'
         ? `Extra Discount (${data.discountValue}%)`
@@ -365,17 +333,14 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
       y += Math.max(14, Math.ceil(data.notes.length / 90) * 11) + 5;
     }
 
-    // ── 9. FOOTER (fixed to page bottom) ──────────────────────────────────────
+    // ── 9. FOOTER ─────────────────────────────────────────────────────────────
     const footY = doc.page.height - T - 22;
     doc.rect(L, footY, W, 0.7).fill(LGREY);
-
-    const contacts  = [CO.phone, CO.email, CO.website].filter(Boolean);
-    const footerTxt = contacts.length > 0
-      ? `Thank you for your business — ${CO.name}  |  ${contacts.join('  |  ')}`
-      : `Thank you for your business — ${CO.name}`;
-
     doc.fillColor(GREY).font('Helvetica').fontSize(7.5)
-       .text(footerTxt, L, footY + 7, { align: 'center', width: W });
+       .text(
+         'DAR AL IRAQ  |  Address: Talary Shusha  |  Phone: +9647709199000',
+         L, footY + 7, { align: 'center', width: W },
+       );
 
     doc.end();
   });
