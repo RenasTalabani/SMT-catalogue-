@@ -191,36 +191,37 @@ export const receiveItems = async (
     });
   }
 
-  // Apply all updates in a single transaction
-  await prisma.$transaction(async (tx) => {
-    for (const u of updates) {
-      await tx.purchaseOrderItem.update({
-        where: { id: u.itemId },
-        data:  { receivedQty: u.newReceivedQty },
-      });
+  // Pre-fetch product quantities (needed for stock movement previousQty)
+  const productIds    = [...new Set(updates.map((u) => u.productId))];
+  const productsBefore = await prisma.product.findMany({
+    where:  { id: { in: productIds } },
+    select: { id: true, quantity: true },
+  });
+  const qtyMap = Object.fromEntries(productsBefore.map((p) => [p.id, p.quantity]));
 
-      const product = await tx.product.findUnique({ where: { id: u.productId } });
-      if (!product) continue;
-
-      await tx.product.update({
-        where: { id: u.productId },
-        data:  { quantity: { increment: u.addQty }, costPrice: u.unitCost },
-      });
-
-      await tx.stockMovement.create({
+  // Batch $transaction — PgBouncer-compatible (no interactive callback)
+  await prisma.$transaction([
+    ...updates.map((u) =>
+      prisma.purchaseOrderItem.update({ where: { id: u.itemId }, data: { receivedQty: u.newReceivedQty } }),
+    ),
+    ...updates.map((u) =>
+      prisma.product.update({ where: { id: u.productId }, data: { quantity: { increment: u.addQty }, costPrice: u.unitCost } }),
+    ),
+    ...updates.map((u) =>
+      prisma.stockMovement.create({
         data: {
           productId:   u.productId,
           type:        'IN',
           quantity:    u.addQty,
-          previousQty: product.quantity,
-          newQty:      product.quantity + u.addQty,
+          previousQty: qtyMap[u.productId] ?? 0,
+          newQty:      (qtyMap[u.productId] ?? 0) + u.addQty,
           notes:       `Received via PO ${po.poNumber}`,
           employeeId,
           reference:   po.poNumber,
         },
-      });
-    }
-  });
+      }),
+    ),
+  ]);
 
   // Determine new PO status
   const refreshed = await prisma.purchaseOrder.findUnique({ where: { id }, include: { items: true } });

@@ -87,11 +87,9 @@ export const create = async (userId: number, input: CreateOrderInput) => {
   }, 0).toFixed(2));
   const finalAmount   = parseFloat((saleSubtotal - discount + tax).toFixed(2));
 
-  const order = await prisma.$transaction(async (tx) => {
-    for (const item of items) {
-      await tx.product.update({ where: { id: item.productId }, data: { quantity: { decrement: item.quantity } } });
-    }
-    return tx.order.create({
+  // Use batch $transaction (PgBouncer-compatible) — interactive form fails with Supabase pooler
+  const [order] = await prisma.$transaction([
+    prisma.order.create({
       data: {
         userId,
         totalAmount,
@@ -115,8 +113,11 @@ export const create = async (userId: number, input: CreateOrderInput) => {
         },
       },
       select: ORDER_SELECT,
-    });
-  });
+    }),
+    ...items.map((item) =>
+      prisma.product.update({ where: { id: item.productId }, data: { quantity: { decrement: item.quantity } } }),
+    ),
+  ]);
 
   await invalidate('products:');
   getIO()?.to('all').emit('order:created', { id: order.id, totalAmount, finalAmount, userId, itemCount: items.length });
