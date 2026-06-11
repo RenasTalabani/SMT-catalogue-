@@ -225,7 +225,7 @@ model ReturnRequest {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  order     Order              @relation(fields: [orderId], references: [id])
+  order     Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
   requester User               @relation("ReturnRequester", fields: [requestedBy], references: [id])
   reviewer  User?              @relation("ReturnReviewer",  fields: [reviewedBy],  references: [id])
   items     ReturnItem[]
@@ -287,7 +287,7 @@ model CouponUsage {
   usedAt    DateTime @default(now())
 
   coupon Coupon @relation(fields: [couponId], references: [id])
-  order  Order  @relation(fields: [orderId],  references: [id])
+  order  Order  @relation(fields: [orderId],  references: [id], onDelete: Cascade)
   user   User   @relation("CouponUser", fields: [userId], references: [id])
 
   @@index([couponId])
@@ -456,7 +456,7 @@ model Invoice {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  order     Order            @relation(fields: [orderId], references: [id])
+  order     Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
   createdBy User             @relation("InvoiceCreator", fields: [createdById], references: [id])
   items     InvoiceItem[]
   payments  InvoicePayment[]
@@ -790,7 +790,7 @@ model ShiftOrder {
   orderId Int
 
   shift Shift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
-  order Order @relation(fields: [orderId], references: [id])
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@id([shiftId, orderId])
   @@index([shiftId])
@@ -1132,7 +1132,7 @@ model PaymentPlan {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  order         Order                @relation(fields: [orderId], references: [id])
+  order         Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
   installments  PaymentInstallment[]
 
   @@index([status])
@@ -1191,7 +1191,7 @@ model CreditPayment {
   createdAt    DateTime @default(now())
 
   account        CreditAccount @relation(fields: [accountId],  references: [id])
-  order          Order?        @relation(fields: [orderId],    references: [id])
+  order          Order?        @relation(fields: [orderId],    references: [id], onDelete: SetNull)
   recordedByUser User          @relation("CreditRecorder", fields: [recordedBy], references: [id])
 
   @@index([accountId])
@@ -1463,7 +1463,7 @@ model SupplierRating {
   createdAt       DateTime @default(now())
 
   supplier      Supplier      @relation(fields: [supplierId],      references: [id])
-  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   ratedByUser   User          @relation("SupplierRater", fields: [ratedBy], references: [id])
 
   @@index([supplierId])

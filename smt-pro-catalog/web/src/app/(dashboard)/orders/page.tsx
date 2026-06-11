@@ -6,9 +6,10 @@ import { useSocket } from '@/hooks/useSocket';
 import { SocketEvent } from '@/lib/socket';
 import Header from '@/components/layout/Header';
 import { clsx } from 'clsx';
-import { FileText, Loader2 } from 'lucide-react';
+import { FileText, Loader2, Trash2, X } from 'lucide-react';
 import ExportButton from '@/components/ui/ExportButton';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/auth.store';
 
 interface Order {
   id:            number;
@@ -30,8 +31,12 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 export default function OrdersPage() {
-  const qc = useQueryClient();
-  const [generatingId, setGeneratingId] = useState<number | null>(null);
+  const { user }                          = useAuthStore();
+  const isAdmin                           = ['super_admin', 'admin'].includes(user?.role ?? '');
+  const qc                                = useQueryClient();
+  const [generatingId, setGeneratingId]   = useState<number | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Order | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const { data, isLoading } = useQuery<{ orders: Order[] }>({
     queryKey:        ['orders'],
@@ -66,9 +71,50 @@ export default function OrdersPage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    setDeleteLoading(true);
+    try {
+      await api.delete(`/orders/${deleteConfirm.id}`);
+      toast.success(`Order #${deleteConfirm.id} deleted`);
+      void qc.invalidateQueries({ queryKey: ['orders'] });
+      setDeleteConfirm(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete order');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col">
       <Header title="Orders" />
+      {/* Delete confirm modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="bg-dark-surface border border-dark-border rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-white text-base">Delete Order</h3>
+              <button type="button" onClick={() => setDeleteConfirm(null)} title="Close"
+                className="p-1.5 rounded-lg hover:bg-dark-card text-[#94A3B8] hover:text-white transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <p className="text-sm text-[#94A3B8]">
+              Permanently delete order <span className="text-primary font-bold">#{deleteConfirm.id}</span>?
+              Stock will be restored if the order was not completed. This cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setDeleteConfirm(null)}
+                className="btn-secondary flex-1 text-sm">Cancel</button>
+              <button type="button" onClick={handleDelete} disabled={deleteLoading}
+                className="flex-1 py-2 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 text-sm font-medium transition-colors disabled:opacity-50">
+                {deleteLoading ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="p-6">
         <div className="card overflow-hidden">
           <div className="border-b border-dark-border px-6 py-4 flex items-center justify-between">
@@ -89,13 +135,14 @@ export default function OrdersPage() {
                   <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wide text-[#94A3B8]">Status</th>
                   <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-[#94A3B8]">Date</th>
                   <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wide text-[#94A3B8]">Invoice</th>
+                  {isAdmin && <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-[#94A3B8]">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-dark-border">
                 {isLoading ? (
-                  <tr><td colSpan={7} className="py-10 text-center text-[#94A3B8]">Loading…</td></tr>
+                  <tr><td colSpan={isAdmin ? 8 : 7} className="py-10 text-center text-[#94A3B8]">Loading…</td></tr>
                 ) : orders.length === 0 ? (
-                  <tr><td colSpan={7} className="py-10 text-center text-[#94A3B8]">No orders yet</td></tr>
+                  <tr><td colSpan={isAdmin ? 8 : 7} className="py-10 text-center text-[#94A3B8]">No orders yet</td></tr>
                 ) : orders.map((o) => (
                   <tr key={o.id} className="hover:bg-dark-card transition-colors">
                     <td className="px-4 py-3 font-semibold text-primary">#{o.id}</td>
@@ -122,6 +169,14 @@ export default function OrdersPage() {
                         Invoice
                       </button>
                     </td>
+                    {isAdmin && (
+                      <td className="px-4 py-3 text-center">
+                        <button type="button" onClick={() => setDeleteConfirm(o)}
+                          className="p-1.5 rounded-lg hover:bg-red-500/10 text-[#94A3B8] hover:text-red-400 transition-colors" title="Delete order">
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

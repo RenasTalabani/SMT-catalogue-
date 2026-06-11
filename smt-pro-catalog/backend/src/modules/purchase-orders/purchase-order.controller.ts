@@ -89,3 +89,10 @@ export const receiveItems = async (req: AuthRequest, res: Response): Promise<voi
     success(res, await poService.receiveItems(Number(req.params['id']), req.user.id, b.items), 'Goods received and stock updated');
   } catch (e) { resolve(e as Error, res); }
 };
+
+export const remove = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    await poService.remove(Number(req.params['id']));
+    success(res, null, 'Purchase order deleted');
+  } catch (e) { resolve(e as Error, res); }
+};

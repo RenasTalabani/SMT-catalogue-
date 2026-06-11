@@ -169,6 +169,26 @@ export const create = async (userId: number, input: CreateOrderInput) => {
   return order;
 };
 
+export const remove = async (id: string | number): Promise<void> => {
+  const oid = parseInt(String(id));
+  const order = await prisma.order.findUnique({
+    where: { id: oid },
+    select: { id: true, status: true, items: { select: { productId: true, quantity: true } } },
+  });
+  if (!order) throw new Error('ORDER_NOT_FOUND');
+  // Restore stock for orders that haven't been completed or already cancelled
+  if (order.status !== 'COMPLETED' && order.status !== 'CANCELLED') {
+    await prisma.$transaction(
+      order.items.map((item) =>
+        prisma.product.update({ where: { id: item.productId }, data: { quantity: { increment: item.quantity } } }),
+      ),
+    );
+    await invalidate('products:');
+  }
+  await prisma.order.delete({ where: { id: oid } });
+  // All cascades (Invoice, OrderItem, ReturnRequest, CouponUsage, etc.) handled by schema
+};
+
 export const updateStatus = async (id: string | number, status: string) => {
   const existing = await prisma.order.findUnique({ where: { id: parseInt(String(id)) } });
   if (!existing) throw new Error('ORDER_NOT_FOUND');

@@ -1,10 +1,11 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileText, Download, Eye, Search, CheckCircle, Clock, XCircle, Printer, DollarSign, X } from 'lucide-react';
+import { FileText, Download, Eye, Search, CheckCircle, Clock, XCircle, Printer, DollarSign, X, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
 import Header from '@/components/layout/Header';
+import { useAuthStore } from '@/store/auth.store';
 
 interface Invoice {
   id:            number;
@@ -34,12 +35,16 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
 };
 
 export default function InvoicesPage() {
+  const { user }                          = useAuthStore();
+  const isAdmin                           = ['super_admin', 'admin'].includes(user?.role ?? '');
   const [search, setSearch]               = useState('');
   const [page, setPage]                   = useState(1);
   const [payModal, setPayModal]           = useState<Invoice | null>(null);
   const [payAmount, setPayAmount]         = useState('');
   const [payNotes, setPayNotes]           = useState('');
   const [payLoading, setPayLoading]       = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<Invoice | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -85,6 +90,21 @@ export default function InvoicesPage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    setDeleteLoading(true);
+    try {
+      await api.delete(`/invoices/${deleteConfirm.id}`);
+      toast.success(`Invoice ${deleteConfirm.invoiceNumber} deleted`);
+      void queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      setDeleteConfirm(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete invoice');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const remaining = (inv: Invoice) => parseFloat((inv.total - (inv.paidAmount ?? 0)).toFixed(2));
 
   return (
@@ -126,6 +146,32 @@ export default function InvoicesPage() {
               className="btn-primary w-full flex items-center justify-center gap-2 py-2.5 disabled:opacity-50">
               {payLoading ? 'Saving…' : 'Record Payment & Update Invoice'}
             </button>
+          </div>
+        </div>
+      )}
+      {/* ── Delete confirm modal ───────────────────────────────────────────── */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="bg-dark-surface border border-dark-border rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-white text-base">Delete Invoice</h3>
+              <button type="button" onClick={() => setDeleteConfirm(null)} title="Close"
+                className="p-1.5 rounded-lg hover:bg-dark-card text-[#94A3B8] hover:text-white transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <p className="text-sm text-[#94A3B8]">
+              Permanently delete invoice <span className="text-primary font-mono font-bold">{deleteConfirm.invoiceNumber}</span>?
+              This cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setDeleteConfirm(null)}
+                className="btn-secondary flex-1 text-sm">Cancel</button>
+              <button type="button" onClick={handleDelete} disabled={deleteLoading}
+                className="flex-1 py-2 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 text-sm font-medium transition-colors disabled:opacity-50">
+                {deleteLoading ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -201,6 +247,12 @@ export default function InvoicesPage() {
                   className="flex items-center justify-center rounded-xl bg-dark-card text-[#94A3B8] hover:text-white px-3 py-2 transition-colors">
                   <Download size={15} />
                 </button>
+                {isAdmin && (
+                  <button type="button" onClick={() => setDeleteConfirm(inv)} title="Delete invoice" aria-label="Delete invoice"
+                    className="flex items-center justify-center rounded-xl bg-dark-card text-[#94A3B8] hover:text-red-400 hover:bg-red-500/10 px-3 py-2 transition-colors">
+                    <Trash2 size={15} />
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -255,6 +307,12 @@ export default function InvoicesPage() {
                         className="p-1.5 rounded-lg hover:bg-dark-card text-[#94A3B8] hover:text-green-400 transition-colors" title="Download">
                         <Download size={15} />
                       </button>
+                      {isAdmin && (
+                        <button type="button" onClick={() => setDeleteConfirm(inv)}
+                          className="p-1.5 rounded-lg hover:bg-red-500/10 text-[#94A3B8] hover:text-red-400 transition-colors" title="Delete invoice">
+                          <Trash2 size={15} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

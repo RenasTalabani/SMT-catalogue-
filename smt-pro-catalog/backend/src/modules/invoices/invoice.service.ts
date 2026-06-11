@@ -364,6 +364,13 @@ export const getOutstandingLoans = async () => {
   };
 };
 
+// ── Delete invoice ────────────────────────────────────────────────────────────
+export const remove = async (id: number): Promise<void> => {
+  const inv = await prisma.invoice.findUnique({ where: { id } });
+  if (!inv) throw new Error('INVOICE_NOT_FOUND');
+  await prisma.invoice.delete({ where: { id } });
+};
+
 // ── Mark as paid ──────────────────────────────────────────────────────────────
 export const markPaid = async (id: number) => {
   const inv = await prisma.invoice.findUnique({ where: { id } });

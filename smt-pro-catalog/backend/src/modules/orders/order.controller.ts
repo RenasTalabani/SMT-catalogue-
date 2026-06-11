@@ -54,6 +54,13 @@ export const create = async (req: AuthRequest, res: Response): Promise<void> => 
   } catch (e) { resolve(e as Error, res); }
 };
 
+export const remove = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    await orderService.remove(req.params['id']!);
+    success(res, null, 'Order deleted');
+  } catch (e) { resolve(e as Error, res); }
+};
+
 export const updateStatus = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const order = await orderService.updateStatus(req.params['id']!, (req.body as { status: string }).status);

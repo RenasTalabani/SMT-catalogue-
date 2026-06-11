@@ -26,4 +26,10 @@ router.patch('/:id/status',
   orderController.updateStatus as unknown as RequestHandler,
 );
 
+router.delete('/:id',
+  restrictTo('super_admin', 'admin') as RequestHandler,
+  auditMiddleware('DELETE', 'Order') as RequestHandler,
+  orderController.remove as unknown as RequestHandler,
+);
+
 export default router;

@@ -2,6 +2,7 @@ import { Router, RequestHandler } from 'express';
 import * as invoiceController from './invoice.controller';
 import { protect } from '../../shared/middlewares/auth.middleware';
 import { restrictTo } from '../../shared/middlewares/rbac.middleware';
+import { auditMiddleware } from '../../shared/middlewares/audit.middleware';
 
 const router = Router();
 
@@ -47,6 +48,14 @@ router.get(
   '/:id/preview',
   restrictTo('super_admin', 'admin', 'employee') as RequestHandler,
   invoiceController.previewPDF as unknown as RequestHandler,
+);
+
+// Delete invoice (admin only)
+router.delete(
+  '/:id',
+  restrictTo('super_admin', 'admin') as RequestHandler,
+  auditMiddleware('DELETE', 'Invoice') as RequestHandler,
+  invoiceController.remove as RequestHandler,
 );
 
 // Mark invoice as paid

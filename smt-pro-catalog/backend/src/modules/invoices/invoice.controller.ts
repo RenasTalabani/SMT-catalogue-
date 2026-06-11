@@ -83,6 +83,14 @@ export const previewPDF = async (req: Request, res: Response): Promise<void> => 
   } catch (e) { resolve(e as Error, res); }
 };
 
+// DELETE /api/invoices/:id
+export const remove = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    await invoiceService.remove(parseInt(req.params['id']!));
+    success(res, null, 'Invoice deleted');
+  } catch (e) { resolve(e as Error, res); }
+};
+
 // PATCH /api/invoices/:id/paid
 export const markPaid = async (req: Request, res: Response): Promise<void> => {
   try {

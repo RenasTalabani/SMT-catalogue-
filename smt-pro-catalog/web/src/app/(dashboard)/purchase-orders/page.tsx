@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ShoppingBag, Plus, X, ChevronRight, Package, Truck,
-  CheckCircle, Clock, XCircle, AlertCircle, DollarSign,
+  CheckCircle, Clock, XCircle, AlertCircle, DollarSign, Trash2,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
@@ -56,11 +56,12 @@ export default function PurchaseOrdersPage() {
   const qc       = useQueryClient();
   const canWrite = ['super_admin', 'admin'].includes(user?.role ?? '');
 
-  const [page, setPage]         = useState(1);
+  const [page, setPage]           = useState(1);
   const [statusFilter, setStatus] = useState('');
   const [selectedId, setSelected] = useState<number | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, setShowCreate]   = useState(false);
   const [showReceive, setShowReceive] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<PurchaseOrder | null>(null);
 
   // Create form state
   const [form, setForm] = useState({
@@ -136,6 +137,18 @@ export default function PurchaseOrdersPage() {
       toast.success('Goods received');
       setShowReceive(false);
       setReceivals({});
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => api.delete(`/purchase-orders/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['purchase-orders'] });
+      qc.invalidateQueries({ queryKey: ['po-stats'] });
+      toast.success('Purchase order deleted');
+      setDeleteConfirm(null);
+      setSelected(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -313,6 +326,10 @@ export default function PurchaseOrdersPage() {
                           className="btn-secondary text-xs">Cancel</button>
                       </>
                     )}
+                    <button type="button" onClick={() => setDeleteConfirm(detail)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs font-medium transition-colors">
+                      <Trash2 size={12} /> Delete PO
+                    </button>
                   </div>
                 )}
               </div>
@@ -419,6 +436,35 @@ export default function PurchaseOrdersPage() {
         </div>
       )}
 
+      {/* Delete confirm modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="bg-dark-surface border border-dark-border rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-white text-base">Delete Purchase Order</h3>
+              <button type="button" onClick={() => setDeleteConfirm(null)} title="Close"
+                className="p-1.5 rounded-lg hover:bg-dark-card text-[#94A3B8] hover:text-white transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <p className="text-sm text-[#94A3B8]">
+              Permanently delete <span className="text-primary font-bold">{deleteConfirm.poNumber}</span>?
+              All items and ratings will also be removed. This cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setDeleteConfirm(null)}
+                className="btn-secondary flex-1 text-sm">Cancel</button>
+              <button type="button"
+                onClick={() => deleteMutation.mutate(deleteConfirm.id)}
+                disabled={deleteMutation.isPending}
+                className="flex-1 py-2 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 text-sm font-medium transition-colors disabled:opacity-50">
+                {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Receive Goods Modal */}
       {showReceive && detail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
@@ -427,7 +473,7 @@ export default function PurchaseOrdersPage() {
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <Package size={18} className="text-primary" /> Receive Goods
               </h2>
-              <button type="button" onClick={() => setShowReceive(false)} className="text-[#94A3B8] hover:text-white"><X size={18} /></button>
+              <button type="button" onClick={() => setShowReceive(false)} title="Close" className="text-[#94A3B8] hover:text-white"><X size={18} /></button>
             </div>
             <p className="text-sm text-[#94A3B8]">{detail.poNumber} — enter received quantities</p>
             <div className="space-y-3">

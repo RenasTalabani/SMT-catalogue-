@@ -260,6 +260,13 @@ export const receiveItems = async (
 };
 
 // ── Stats summary ─────────────────────────────────────────────────────────────
+export const remove = async (id: number): Promise<void> => {
+  const po = await prisma.purchaseOrder.findUnique({ where: { id } });
+  if (!po) throw new Error('PO_NOT_FOUND');
+  await prisma.purchaseOrder.delete({ where: { id } });
+  // PurchaseOrderItems and SupplierRating cascade via schema onDelete: Cascade
+};
+
 export const getStats = async () => {
   const [byStatus, totalSpend, recentOrders] = await Promise.all([
     prisma.purchaseOrder.groupBy({
