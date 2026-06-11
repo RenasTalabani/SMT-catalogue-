@@ -50,6 +50,14 @@ router.get(
   invoiceController.previewPDF as unknown as RequestHandler,
 );
 
+// Edit invoice (admin only)
+router.patch(
+  '/:id/edit',
+  restrictTo('super_admin', 'admin') as RequestHandler,
+  auditMiddleware('UPDATE', 'Invoice') as RequestHandler,
+  invoiceController.editInvoice as RequestHandler,
+);
+
 // Delete invoice (admin only)
 router.delete(
   '/:id',

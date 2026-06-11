@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileText, Download, Eye, Search, CheckCircle, Clock, XCircle, Printer, DollarSign, X, Trash2 } from 'lucide-react';
+import { FileText, Download, Eye, Search, CheckCircle, Clock, XCircle, Printer, DollarSign, X, Trash2, Pencil } from 'lucide-react';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
 import Header from '@/components/layout/Header';
@@ -45,6 +45,9 @@ export default function InvoicesPage() {
   const [payLoading, setPayLoading]       = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<Invoice | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [editModal, setEditModal]         = useState<Invoice | null>(null);
+  const [editLoading, setEditLoading]     = useState(false);
+  const [editForm, setEditForm]           = useState({ customerName: '', customerPhone: '', paymentMethod: 'CASH', paidAmount: '', isLoan: false, status: '', notes: '' });
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -105,6 +108,42 @@ export default function InvoicesPage() {
     }
   };
 
+  const openEdit = (inv: Invoice) => {
+    setEditForm({
+      customerName:  inv.customerName  ?? '',
+      customerPhone: inv.customerPhone ?? '',
+      paymentMethod: inv.paymentMethod,
+      paidAmount:    String(inv.paidAmount ?? 0),
+      isLoan:        inv.isLoan,
+      status:        inv.status,
+      notes:         '',
+    });
+    setEditModal(inv);
+  };
+
+  const submitEdit = async () => {
+    if (!editModal) return;
+    setEditLoading(true);
+    try {
+      await api.patch(`/invoices/${editModal.id}/edit`, {
+        customerName:  editForm.customerName  || null,
+        customerPhone: editForm.customerPhone || null,
+        paymentMethod: editForm.paymentMethod,
+        paidAmount:    parseFloat(editForm.paidAmount) || 0,
+        isLoan:        editForm.isLoan,
+        status:        editForm.status || undefined,
+        notes:         editForm.notes  || null,
+      });
+      toast.success('Invoice updated');
+      void queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      setEditModal(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to update invoice');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
   const remaining = (inv: Invoice) => parseFloat((inv.total - (inv.paidAmount ?? 0)).toFixed(2));
 
   return (
@@ -149,6 +188,87 @@ export default function InvoicesPage() {
           </div>
         </div>
       )}
+      {/* ── Edit invoice modal ────────────────────────────────────────────── */}
+      {editModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="bg-dark-surface border border-dark-border rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-white text-base">Edit Invoice <span className="text-primary font-mono">{editModal.invoiceNumber}</span></h3>
+              <button type="button" onClick={() => setEditModal(null)} title="Close"
+                className="p-1.5 rounded-lg hover:bg-dark-card text-[#94A3B8] hover:text-white transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-[#94A3B8] mb-1 block">Customer Name</label>
+                <input title="Customer name" placeholder="Customer name" className="input w-full text-sm" value={editForm.customerName}
+                  onChange={(e) => setEditForm((f) => ({ ...f, customerName: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-xs text-[#94A3B8] mb-1 block">Phone</label>
+                <input title="Phone number" placeholder="Phone number" className="input w-full text-sm" value={editForm.customerPhone}
+                  onChange={(e) => setEditForm((f) => ({ ...f, customerPhone: e.target.value }))} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-[#94A3B8] mb-1 block">Payment Method</label>
+                <select title="Payment method" className="input w-full text-sm" value={editForm.paymentMethod}
+                  onChange={(e) => setEditForm((f) => ({ ...f, paymentMethod: e.target.value }))}>
+                  {['CASH','CARD','TRANSFER','OTHER'].map((m) => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-[#94A3B8] mb-1 block">Status</label>
+                <select title="Invoice status" className="input w-full text-sm" value={editForm.status}
+                  onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}>
+                  {['ISSUED','PAID','CANCELLED','DRAFT'].map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-[#94A3B8] mb-1 block">
+                Amount Paid <span className="text-[#64748B]">(total: ${editModal.total.toFixed(2)})</span>
+              </label>
+              <input type="number" min="0" step="0.01" title="Amount paid" placeholder="0.00" className="input w-full text-sm"
+                value={editForm.paidAmount}
+                onChange={(e) => setEditForm((f) => ({ ...f, paidAmount: e.target.value }))} />
+              {editForm.paidAmount !== '' && (
+                <p className="text-xs mt-1">
+                  {parseFloat(editForm.paidAmount) >= editModal.total
+                    ? <span className="text-green-400">Fully paid — status will be set to PAID</span>
+                    : <span className="text-yellow-400">Remaining: ${Math.max(0, editModal.total - (parseFloat(editForm.paidAmount) || 0)).toFixed(2)} — status will be ISSUED</span>
+                  }
+                </p>
+              )}
+            </div>
+
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" className="w-4 h-4 accent-primary" checked={editForm.isLoan}
+                onChange={(e) => setEditForm((f) => ({ ...f, isLoan: e.target.checked }))} />
+              <span className="text-sm text-white">Loan / Installment</span>
+            </label>
+
+            <div>
+              <label className="text-xs text-[#94A3B8] mb-1 block">Notes (optional)</label>
+              <textarea title="Notes" placeholder="Notes (optional)" className="input w-full text-sm resize-none" rows={2} value={editForm.notes}
+                onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))} />
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <button type="button" onClick={() => setEditModal(null)} className="btn-secondary flex-1 text-sm">Cancel</button>
+              <button type="button" onClick={submitEdit} disabled={editLoading} className="btn-primary flex-1 text-sm disabled:opacity-50">
+                {editLoading ? 'Saving…' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Delete confirm modal ───────────────────────────────────────────── */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
@@ -248,6 +368,12 @@ export default function InvoicesPage() {
                   <Download size={15} />
                 </button>
                 {isAdmin && (
+                  <button type="button" onClick={() => openEdit(inv)} title="Edit invoice" aria-label="Edit invoice"
+                    className="flex items-center justify-center rounded-xl bg-dark-card text-[#94A3B8] hover:text-primary hover:bg-primary/10 px-3 py-2 transition-colors">
+                    <Pencil size={15} />
+                  </button>
+                )}
+                {isAdmin && (
                   <button type="button" onClick={() => setDeleteConfirm(inv)} title="Delete invoice" aria-label="Delete invoice"
                     className="flex items-center justify-center rounded-xl bg-dark-card text-[#94A3B8] hover:text-red-400 hover:bg-red-500/10 px-3 py-2 transition-colors">
                     <Trash2 size={15} />
@@ -307,6 +433,12 @@ export default function InvoicesPage() {
                         className="p-1.5 rounded-lg hover:bg-dark-card text-[#94A3B8] hover:text-green-400 transition-colors" title="Download">
                         <Download size={15} />
                       </button>
+                      {isAdmin && (
+                        <button type="button" onClick={() => openEdit(inv)}
+                          className="p-1.5 rounded-lg hover:bg-primary/10 text-[#94A3B8] hover:text-primary transition-colors" title="Edit invoice">
+                          <Pencil size={15} />
+                        </button>
+                      )}
                       {isAdmin && (
                         <button type="button" onClick={() => setDeleteConfirm(inv)}
                           className="p-1.5 rounded-lg hover:bg-red-500/10 text-[#94A3B8] hover:text-red-400 transition-colors" title="Delete invoice">

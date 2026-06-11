@@ -364,6 +364,45 @@ export const getOutstandingLoans = async () => {
   };
 };
 
+// ── Edit invoice (admin) ──────────────────────────────────────────────────────
+export interface InvoiceEditInput {
+  customerName?:  string | null;
+  customerPhone?: string | null;
+  paymentMethod?: string;
+  notes?:         string | null;
+  isLoan?:        boolean;
+  paidAmount?:    number;
+  status?:        string;
+}
+
+export const edit = async (id: number, data: InvoiceEditInput) => {
+  const inv = await prisma.invoice.findUnique({ where: { id } });
+  if (!inv) throw new Error('INVOICE_NOT_FOUND');
+
+  const updates: Record<string, unknown> = { ...data };
+
+  // Auto-resolve status from paidAmount when status not explicitly set
+  if (data.paidAmount !== undefined && data.status === undefined) {
+    const paid = data.paidAmount;
+    if (paid >= inv.total) {
+      updates['status']  = 'PAID';
+      updates['paidAt']  = new Date();
+    } else {
+      updates['status']  = 'ISSUED';
+      updates['paidAt']  = null;
+    }
+  }
+  // If status explicitly set to PAID, stamp paidAt
+  if (data.status === 'PAID' && !inv.paidAt) {
+    updates['paidAt'] = new Date();
+  }
+  if (data.status && data.status !== 'PAID') {
+    updates['paidAt'] = null;
+  }
+
+  return prisma.invoice.update({ where: { id }, data: updates });
+};
+
 // ── Delete invoice ────────────────────────────────────────────────────────────
 export const remove = async (id: number): Promise<void> => {
   const inv = await prisma.invoice.findUnique({ where: { id } });
