@@ -49,36 +49,26 @@ export const getById = async (req: Request, res: Response): Promise<void> => {
   } catch (e) { resolve(e as Error, res); }
 };
 
-// GET /api/invoices/:id/pdf  — streams PDF download
+// GET /api/invoices/:id/pdf  — streams PDF download (always fresh)
 export const downloadPDF = async (req: Request, res: Response): Promise<void> => {
   try {
     const inv = await invoiceService.getById(parseInt(req.params['id']!));
-
-    // If PDF stored in Supabase, redirect to it
-    if (inv.pdfUrl) {
-      res.redirect(inv.pdfUrl);
-      return;
-    }
-
-    // Otherwise regenerate on the fly
     const buf = await invoiceService.regeneratePDF(parseInt(req.params['id']!));
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${inv.invoiceNumber}.pdf"`);
+    res.setHeader('Cache-Control', 'no-store');
     res.send(buf);
   } catch (e) { resolve(e as Error, res); }
 };
 
-// GET /api/invoices/:id/preview  — inline PDF preview
+// GET /api/invoices/:id/preview  — inline PDF preview (always fresh)
 export const previewPDF = async (req: Request, res: Response): Promise<void> => {
   try {
     const inv = await invoiceService.getById(parseInt(req.params['id']!));
-    if (inv.pdfUrl) {
-      res.redirect(inv.pdfUrl);
-      return;
-    }
     const buf = await invoiceService.regeneratePDF(parseInt(req.params['id']!));
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${inv.invoiceNumber}.pdf"`);
+    res.setHeader('Cache-Control', 'no-store');
     res.send(buf);
   } catch (e) { resolve(e as Error, res); }
 };
