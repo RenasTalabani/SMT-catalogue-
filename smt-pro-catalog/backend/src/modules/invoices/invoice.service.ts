@@ -229,6 +229,45 @@ export const getById = async (id: number) => {
   return inv;
 };
 
+// ── Regenerate + upload PDF and update invoice.pdfUrl ────────────────────────
+async function refreshStoredPDF(id: number): Promise<void> {
+  const inv = await prisma.invoice.findUnique({
+    where:   { id },
+    include: { items: true, createdBy: { select: { name: true } }, payments: { orderBy: { paidAt: 'asc' } } },
+  });
+  if (!inv) return;
+  const buf    = await generateInvoicePDF({
+    invoiceNumber:   inv.invoiceNumber,
+    issuedAt:        inv.issuedAt,
+    status:          inv.status,
+    paymentMethod:   inv.paymentMethod,
+    notes:           inv.notes,
+    customerName:    inv.customerName,
+    customerPhone:   inv.customerPhone,
+    customerEmail:   inv.customerEmail,
+    customerAddress: inv.customerAddress,
+    subtotal:        inv.subtotal,
+    discountAmount:  inv.discountAmount,
+    discountValue:   inv.discountValue,
+    discountType:    inv.discountType,
+    taxRate:         inv.taxRate,
+    taxAmount:       inv.taxAmount,
+    total:           inv.total,
+    isLoan:          inv.isLoan,
+    paidAmount:      inv.paidAmount,
+    payments:        inv.payments,
+    items:           inv.items,
+    createdBy:       inv.createdBy,
+  });
+  const stored = await uploadPDF(buf, inv.invoiceNumber);
+  if (stored) {
+    await prisma.invoice.update({
+      where: { id },
+      data:  { pdfUrl: stored.url, pdfPublicId: stored.publicId },
+    });
+  }
+}
+
 // ── Regenerate PDF (re-download if lost) ──────────────────────────────────────
 export const regeneratePDF = async (id: number): Promise<Buffer> => {
   const inv = await prisma.invoice.findUnique({
@@ -476,6 +515,8 @@ export const editItems = async (id: number, newItems: EditItemInput[]) => {
     }),
   ]);
 
+  await refreshStoredPDF(id);
+
   return prisma.invoice.findUnique({
     where:   { id },
     include: { items: true, createdBy: { select: { name: true } }, payments: { orderBy: { paidAt: 'asc' } } },
@@ -518,7 +559,9 @@ export const edit = async (id: number, data: InvoiceEditInput) => {
     updates['paidAt'] = null;
   }
 
-  return prisma.invoice.update({ where: { id }, data: updates });
+  const updated = await prisma.invoice.update({ where: { id }, data: updates });
+  await refreshStoredPDF(id);
+  return updated;
 };
 
 // ── Delete invoice ────────────────────────────────────────────────────────────
