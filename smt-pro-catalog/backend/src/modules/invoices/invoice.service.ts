@@ -1,5 +1,5 @@
 import prisma from '../../config/prisma';
-import { generateInvoicePDF } from '../../services/pdf.service';
+import { generateInvoicePDF, generateReceiptPDF } from '../../services/pdf.service';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 import { createNotification } from '../notifications/notification.service';
@@ -17,6 +17,11 @@ function getSupabase() {
 function buildInvoiceNumber(id: number): string {
   const year = new Date().getFullYear();
   return `INV-${year}-${String(id).padStart(6, '0')}`;
+}
+
+function buildReceiptNumber(paymentId: number): string {
+  const year = new Date().getFullYear();
+  return `RCPT-${year}-${String(paymentId).padStart(6, '0')}`;
 }
 
 // ── Upload PDF buffer to Supabase Storage ─────────────────────────────────────
@@ -279,7 +284,7 @@ export const addPayment = async (invoiceId: number, amount: number, notes: strin
   const newPaidAmount = parseFloat((alreadyPaid + actualAmount).toFixed(2));
   const fullyPaid     = newPaidAmount >= inv.total;
 
-  const payment = await prisma.invoicePayment.create({
+  let payment = await prisma.invoicePayment.create({
     data: { invoiceId, amount: actualAmount, notes: notes ?? null, createdById, paidAt: new Date() },
   });
 
@@ -330,7 +335,73 @@ export const addPayment = async (invoiceId: number, amount: number, notes: strin
     });
   }
 
+  // Generate a permanent payment receipt PDF
+  const receiptNum = buildReceiptNumber(payment.id);
+  const creator    = await prisma.user.findUnique({ where: { id: createdById }, select: { name: true } });
+  const receiptBuf = await generateReceiptPDF({
+    receiptNumber:  receiptNum,
+    invoiceNumber:  updated.invoiceNumber,
+    customerName:   updated.customerName,
+    customerPhone:  updated.customerPhone,
+    invoiceTotal:   updated.total,
+    paymentAmount:  actualAmount,
+    totalPaid:      newPaidAmount,
+    remaining:      parseFloat((updated.total - newPaidAmount).toFixed(2)),
+    paidAt:         payment.paidAt,
+    notes:          payment.notes,
+    createdByName:  creator?.name ?? 'System',
+  });
+
+  const storedReceipt = await uploadPDF(receiptBuf, receiptNum);
+  if (storedReceipt) {
+    await prisma.invoicePayment.update({
+      where: { id: payment.id },
+      data:  { receiptNumber: receiptNum, receiptPdfUrl: storedReceipt.url },
+    });
+    payment = { ...payment, receiptNumber: receiptNum, receiptPdfUrl: storedReceipt.url };
+  }
+
   return { invoice: updated, payment };
+};
+
+// ── Get single payment receipt (for re-download) ──────────────────────────────
+export const getPaymentReceipt = async (invoiceId: number, paymentId: number) => {
+  const inv = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+  if (!inv) throw new Error('INVOICE_NOT_FOUND');
+
+  const payment = await prisma.invoicePayment.findFirst({
+    where:   { id: paymentId, invoiceId },
+    include: { createdBy: { select: { name: true } } },
+  });
+  if (!payment) throw new Error('PAYMENT_NOT_FOUND');
+
+  // If we already have a stored receipt PDF, return its URL
+  if (payment.receiptPdfUrl) {
+    return { url: payment.receiptPdfUrl, receiptNumber: payment.receiptNumber };
+  }
+
+  // Regenerate on the fly (for older payments before this feature)
+  const receiptNum = payment.receiptNumber ?? buildReceiptNumber(payment.id);
+  const allPayments = await prisma.invoicePayment.findMany({
+    where:   { invoiceId, paidAt: { lte: payment.paidAt } },
+    orderBy: { paidAt: 'asc' },
+  });
+  const totalPaidAtTime = parseFloat(allPayments.reduce((s, p) => s + p.amount, 0).toFixed(2));
+
+  const buf = await generateReceiptPDF({
+    receiptNumber:  receiptNum,
+    invoiceNumber:  inv.invoiceNumber,
+    customerName:   inv.customerName,
+    customerPhone:  inv.customerPhone,
+    invoiceTotal:   inv.total,
+    paymentAmount:  payment.amount,
+    totalPaid:      totalPaidAtTime,
+    remaining:      parseFloat((inv.total - totalPaidAtTime).toFixed(2)),
+    paidAt:         payment.paidAt,
+    notes:          payment.notes,
+    createdByName:  payment.createdBy.name,
+  });
+  return { buffer: buf, receiptNumber: receiptNum };
 };
 
 // ── Outstanding loans summary ─────────────────────────────────────────────────

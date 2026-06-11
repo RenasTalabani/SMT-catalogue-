@@ -69,6 +69,125 @@ function drawLogo(doc: InstanceType<typeof PDFDocument>, lx: number, ly: number,
      .text('Dar AL Iraq', lx + 68 * s, ly + h * 0.35, { lineBreak: false });
 }
 
+// ── Payment receipt interface ─────────────────────────────────────────────────
+export interface PaymentReceiptData {
+  receiptNumber:  string;
+  invoiceNumber:  string;
+  customerName?:  string | null;
+  customerPhone?: string | null;
+  invoiceTotal:   number;
+  paymentAmount:  number;
+  totalPaid:      number;
+  remaining:      number;
+  paidAt:         Date;
+  notes?:         string | null;
+  createdByName:  string;
+}
+
+// ── Payment receipt PDF generator ─────────────────────────────────────────────
+export async function generateReceiptPDF(data: PaymentReceiptData): Promise<Buffer> {
+  return new Promise<Buffer>((resolvePDF, rejectPDF) => {
+    const L = 35;
+    const T = 35;
+
+    const doc = new PDFDocument({
+      size:    'A5',
+      margins: { top: T, bottom: T, left: L, right: L },
+    });
+    const chunks: Buffer[] = [];
+    doc.on('data',  (c) => chunks.push(c));
+    doc.on('end',   () => resolvePDF(Buffer.concat(chunks)));
+    doc.on('error', rejectPDF);
+
+    const W  = doc.page.width - L * 2;  // ≈ 420
+    const RE = L + W;
+    let y = T;
+
+    // ── Header ────────────────────────────────────────────────────────────────
+    const HDR_H = 60;
+    doc.rect(L, y, W, HDR_H).fill(DARK);
+    drawLogo(doc, L + 6, y + 6, HDR_H - 12);
+    doc.fillColor(GREEN).font('Helvetica-Bold').fontSize(16)
+       .text('PAYMENT RECEIPT', L, y + 14, { align: 'right', width: W - 8 });
+    doc.fillColor('#94A3B8').font('Helvetica').fontSize(7)
+       .text(data.receiptNumber, L, y + 36, { align: 'right', width: W - 8 });
+    y += HDR_H + 12;
+
+    // ── Reference row ─────────────────────────────────────────────────────────
+    doc.fillColor(GREY).font('Helvetica-Bold').fontSize(7).text('INVOICE', L, y);
+    doc.fillColor(DARK).font('Helvetica').fontSize(9)
+       .text(data.invoiceNumber, L, y + 10, { width: W / 2 });
+
+    doc.fillColor(GREY).font('Helvetica-Bold').fontSize(7)
+       .text('DATE', L + W / 2, y);
+    doc.fillColor(DARK).font('Helvetica').fontSize(9)
+       .text(data.paidAt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }), L + W / 2, y + 10);
+    y += 26;
+
+    // ── Customer ──────────────────────────────────────────────────────────────
+    doc.moveTo(L, y).lineTo(RE, y).strokeColor(LGREY).lineWidth(0.7).stroke();
+    y += 8;
+    doc.fillColor(BRAND).font('Helvetica-Bold').fontSize(7).text('CUSTOMER', L, y);
+    y += 10;
+    doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10)
+       .text(data.customerName ?? 'Walk-in Customer', L, y, { width: W });
+    y += 14;
+    if (data.customerPhone) {
+      doc.fillColor(GREY).font('Helvetica').fontSize(8).text(`Tel: ${data.customerPhone}`, L, y);
+      y += 12;
+    }
+    y += 6;
+
+    // ── Amount box ────────────────────────────────────────────────────────────
+    doc.moveTo(L, y).lineTo(RE, y).strokeColor(LGREY).lineWidth(0.7).stroke();
+    y += 10;
+
+    doc.rect(L, y, W, 40).fill('#F0FFF4');
+    doc.fillColor(GREY).font('Helvetica-Bold').fontSize(8).text('AMOUNT PAID', L + 8, y + 6);
+    doc.fillColor(GREEN).font('Helvetica-Bold').fontSize(22)
+       .text(`$${data.paymentAmount.toFixed(2)}`, L, y + 10, { align: 'right', width: W - 10 });
+    y += 48;
+
+    // ── Balance summary ───────────────────────────────────────────────────────
+    const row = (label: string, value: string, valColor = DARK) => {
+      doc.fillColor(GREY).font('Helvetica').fontSize(8.5).text(label, L, y);
+      doc.fillColor(valColor).font('Helvetica-Bold').fontSize(8.5)
+         .text(value, L, y, { align: 'right', width: W });
+      y += 14;
+    };
+
+    row('Invoice Total', `$${data.invoiceTotal.toFixed(2)}`);
+    row('Total Paid (including this payment)', `$${data.totalPaid.toFixed(2)}`, GREEN);
+    if (data.remaining > 0) {
+      row('Remaining Balance', `$${data.remaining.toFixed(2)}`, RED);
+    } else {
+      y += 2;
+      doc.rect(L, y, W, 20).fill('#F0FFF4');
+      doc.fillColor(GREEN).font('Helvetica-Bold').fontSize(9)
+         .text('FULLY PAID — Thank you!', L, y + 6, { align: 'center', width: W });
+      y += 28;
+    }
+
+    // ── Notes ─────────────────────────────────────────────────────────────────
+    if (data.notes) {
+      y += 4;
+      doc.moveTo(L, y).lineTo(RE, y).strokeColor(LGREY).lineWidth(0.5).stroke();
+      y += 8;
+      doc.fillColor(GREY).font('Helvetica-Bold').fontSize(7).text('NOTES', L, y);
+      y += 10;
+      doc.fillColor(DARK).font('Helvetica').fontSize(8).text(data.notes, L, y, { width: W });
+    }
+
+    // ── Footer ────────────────────────────────────────────────────────────────
+    const footY = doc.page.height - T - 22;
+    doc.rect(L, footY, W, 0.7).fill(LGREY);
+    doc.fillColor(GREY).font('Helvetica').fontSize(7)
+       .text('DAR AL IRAQ  |  Address: Talary Shusha  |  Phone: +9647709199000', L, footY + 7, { align: 'center', width: W });
+
+    doc.end();
+  });
+}
+
 // ── Data interface ────────────────────────────────────────────────────────────
 interface InvoiceData {
   invoiceNumber:    string;

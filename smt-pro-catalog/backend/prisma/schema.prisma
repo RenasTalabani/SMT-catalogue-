@@ -469,12 +469,14 @@ model Invoice {
 }
 
 model InvoicePayment {
-  id          Int      @id @default(autoincrement())
-  invoiceId   Int
-  amount      Float
-  notes       String?  @db.Text
-  createdById Int
-  paidAt      DateTime @default(now())
+  id             Int      @id @default(autoincrement())
+  invoiceId      Int
+  amount         Float
+  notes          String?  @db.Text
+  createdById    Int
+  paidAt         DateTime @default(now())
+  receiptNumber  String?
+  receiptPdfUrl  String?
 
   invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   createdBy User    @relation("PaymentCreator", fields: [createdById], references: [id])

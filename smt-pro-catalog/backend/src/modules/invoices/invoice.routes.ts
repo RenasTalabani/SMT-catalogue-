@@ -88,4 +88,11 @@ router.post(
   invoiceController.addPayment as unknown as RequestHandler,
 );
 
+// Download a specific payment receipt PDF
+router.get(
+  '/:id/payment/:paymentId/receipt',
+  restrictTo('super_admin', 'admin', 'employee') as RequestHandler,
+  invoiceController.downloadPaymentReceipt as unknown as RequestHandler,
+);
+
 export default router;

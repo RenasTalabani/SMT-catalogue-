@@ -119,6 +119,25 @@ export const markPaid = async (req: Request, res: Response): Promise<void> => {
   } catch (e) { resolve(e as Error, res); }
 };
 
+// GET /api/invoices/:id/payment/:paymentId/receipt
+export const downloadPaymentReceipt = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const invoiceId = parseInt(req.params['id']!);
+    const paymentId = parseInt(req.params['paymentId']!);
+    const result    = await invoiceService.getPaymentReceipt(invoiceId, paymentId);
+    if ('url' in result && result.url) {
+      res.redirect(result.url);
+    } else if ('buffer' in result && result.buffer) {
+      const name = result.receiptNumber ?? `RCPT-${paymentId}`;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${name}.pdf"`);
+      res.send(result.buffer);
+    } else {
+      error(res, 'Receipt not available', 404);
+    }
+  } catch (e) { resolve(e as Error, res); }
+};
+
 // POST /api/invoices/:id/payment
 export const addPayment = async (req: AuthRequest, res: Response): Promise<void> => {
   try {

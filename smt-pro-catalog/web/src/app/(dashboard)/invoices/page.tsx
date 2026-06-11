@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileText, Download, Eye, Search, CheckCircle, Clock, XCircle, Printer, DollarSign, X, Trash2, Pencil, ListOrdered, Plus } from 'lucide-react';
+import { FileText, Download, Eye, Search, CheckCircle, Clock, XCircle, Printer, DollarSign, X, Trash2, Pencil, ListOrdered, Plus, Receipt } from 'lucide-react';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
 import Header from '@/components/layout/Header';
@@ -15,6 +15,16 @@ interface InvoiceItem {
   unitPrice:   number;
   discount:    number;
   total:       number;
+}
+
+interface InvoicePaymentRecord {
+  id:             number;
+  amount:         number;
+  notes:          string | null;
+  paidAt:         string;
+  receiptNumber:  string | null;
+  receiptPdfUrl:  string | null;
+  createdBy:      { name: string };
 }
 
 interface Invoice {
@@ -31,6 +41,7 @@ interface Invoice {
   pdfUrl:        string | null;
   createdBy:     { name: string };
   items?:        InvoiceItem[];
+  payments?:     InvoicePaymentRecord[];
 }
 
 interface EditItemRow {
@@ -59,10 +70,12 @@ export default function InvoicesPage() {
   const isAdmin                           = ['super_admin', 'admin'].includes(user?.role ?? '');
   const [search, setSearch]               = useState('');
   const [page, setPage]                   = useState(1);
-  const [payModal, setPayModal]           = useState<Invoice | null>(null);
-  const [payAmount, setPayAmount]         = useState('');
-  const [payNotes, setPayNotes]           = useState('');
-  const [payLoading, setPayLoading]       = useState(false);
+  const [payModal, setPayModal]               = useState<Invoice | null>(null);
+  const [payAmount, setPayAmount]             = useState('');
+  const [payNotes, setPayNotes]               = useState('');
+  const [payLoading, setPayLoading]           = useState(false);
+  const [payHistory, setPayHistory]           = useState<InvoicePaymentRecord[]>([]);
+  const [lastReceiptUrl, setLastReceiptUrl]   = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Invoice | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [editModal, setEditModal]         = useState<Invoice | null>(null);
@@ -90,10 +103,20 @@ export default function InvoicesPage() {
     window.open(`/api/invoices/${id}/${mode}?token=${getToken()}`, '_blank');
   };
 
-  const openPayModal = (inv: Invoice) => {
+  const openPayModal = async (inv: Invoice) => {
     setPayModal(inv);
     setPayAmount('');
     setPayNotes('');
+    setLastReceiptUrl(null);
+    try {
+      const res  = await api.get(`/invoices/${inv.id}`);
+      const full = res.data.data as Invoice;
+      setPayHistory(full.payments ?? []);
+      // Merge up-to-date paidAmount into modal
+      setPayModal({ ...inv, paidAmount: full.paidAmount, payments: full.payments });
+    } catch {
+      setPayHistory([]);
+    }
   };
 
   const submitPayment = async () => {
@@ -102,13 +125,23 @@ export default function InvoicesPage() {
     if (!amt || amt <= 0) { toast.error('Enter a valid amount'); return; }
     setPayLoading(true);
     try {
-      await api.post(`/invoices/${payModal.id}/payment`, { amount: amt, notes: payNotes || undefined });
+      const res     = await api.post(`/invoices/${payModal.id}/payment`, { amount: amt, notes: payNotes || undefined });
+      const payment = res.data.data?.payment as InvoicePaymentRecord | undefined;
       toast.success('Payment recorded!');
       void queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      setPayModal(null);
-      setTimeout(() => {
-        window.open(`/api/invoices/${payModal.id}/preview?token=${getToken()}`, '_blank');
-      }, 300);
+      setPayAmount('');
+      setPayNotes('');
+      if (payment?.receiptPdfUrl) {
+        setLastReceiptUrl(payment.receiptPdfUrl);
+      } else if (payment?.id) {
+        // Receipt URL: backend will redirect via /invoices/:id/payment/:paymentId/receipt
+        setLastReceiptUrl(`/api/invoices/${payModal.id}/payment/${payment.id}/receipt?token=${getToken()}`);
+      }
+      // Refresh history
+      const updated = await api.get(`/invoices/${payModal.id}`);
+      const full    = updated.data.data as Invoice;
+      setPayHistory(full.payments ?? []);
+      setPayModal((p) => p ? { ...p, paidAmount: full.paidAmount } : p);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to record payment');
     } finally {
@@ -227,7 +260,7 @@ export default function InvoicesPage() {
       {/* ── Payment modal ──────────────────────────────────────────────────── */}
       {payModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="bg-dark-surface border border-dark-border rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
+          <div className="bg-dark-surface border border-dark-border rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-white text-base">Record Payment</h3>
               <button type="button" onClick={() => setPayModal(null)}
@@ -240,25 +273,67 @@ export default function InvoicesPage() {
               <p>Customer: <span className="text-white">{payModal.customerName ?? 'Walk-in'}</span></p>
               <p>Total: <span className="text-white font-bold">${payModal.total.toFixed(2)}</span>
                  <span className="ml-2">Paid: <span className="text-green-400 font-bold">${(payModal.paidAmount ?? 0).toFixed(2)}</span></span></p>
-              <p className="text-red-400 font-bold text-base">Remaining: ${remaining(payModal).toFixed(2)}</p>
+              {remaining(payModal) > 0
+                ? <p className="text-red-400 font-bold text-base">Remaining: ${remaining(payModal).toFixed(2)}</p>
+                : <p className="text-green-400 font-bold text-base">Fully Paid</p>}
             </div>
-            <input
-              type="number" min="0.01" step="0.01"
-              className="input w-full text-sm"
-              placeholder={`Amount (max $${remaining(payModal).toFixed(2)})`}
-              value={payAmount}
-              onChange={(e) => setPayAmount(e.target.value)}
-            />
-            <input
-              className="input w-full text-sm"
-              placeholder="Notes (optional)"
-              value={payNotes}
-              onChange={(e) => setPayNotes(e.target.value)}
-            />
-            <button type="button" onClick={submitPayment} disabled={payLoading}
-              className="btn-primary w-full flex items-center justify-center gap-2 py-2.5 disabled:opacity-50">
-              {payLoading ? 'Saving…' : 'Record Payment & Update Invoice'}
-            </button>
+
+            {/* Payment history */}
+            {payHistory.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-bold text-[#94A3B8] uppercase tracking-wide">Payment History</p>
+                <div className="max-h-36 overflow-y-auto space-y-1.5 pr-0.5">
+                  {payHistory.map((pmt, idx) => (
+                    <div key={pmt.id} className="flex items-center justify-between bg-dark-card rounded-lg px-3 py-2 text-xs">
+                      <div>
+                        <span className="text-green-400 font-bold">${pmt.amount.toFixed(2)}</span>
+                        <span className="text-[#64748B] ml-2">{new Date(pmt.paidAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                        {pmt.notes && <span className="text-[#94A3B8] ml-1">— {pmt.notes}</span>}
+                        {pmt.receiptNumber && <span className="text-[#64748B] ml-1 font-mono">({pmt.receiptNumber})</span>}
+                      </div>
+                      <a
+                        href={pmt.receiptPdfUrl ?? `/api/invoices/${payModal.id}/payment/${pmt.id}/receipt?token=${getToken()}`}
+                        target="_blank" rel="noreferrer"
+                        title={`Download receipt for payment ${idx + 1}`}
+                        className="flex items-center gap-1 text-primary hover:text-primary/80 transition-colors ml-2 flex-shrink-0">
+                        <Receipt size={13} />
+                        <span>Receipt</span>
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Last receipt quick download */}
+            {lastReceiptUrl && (
+              <a href={lastReceiptUrl} target="_blank" rel="noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-green-500/15 text-green-400 hover:bg-green-500/25 text-sm font-medium transition-colors">
+                <Receipt size={15} /> Download Last Receipt
+              </a>
+            )}
+
+            {remaining(payModal) > 0 && (
+              <>
+                <input
+                  type="number" min="0.01" step="0.01"
+                  className="input w-full text-sm"
+                  placeholder={`Amount (max $${remaining(payModal).toFixed(2)})`}
+                  value={payAmount}
+                  onChange={(e) => setPayAmount(e.target.value)}
+                />
+                <input
+                  className="input w-full text-sm"
+                  placeholder="Notes (optional)"
+                  value={payNotes}
+                  onChange={(e) => setPayNotes(e.target.value)}
+                />
+                <button type="button" onClick={submitPayment} disabled={payLoading}
+                  className="btn-primary w-full flex items-center justify-center gap-2 py-2.5 disabled:opacity-50">
+                  {payLoading ? 'Saving…' : 'Record Payment & Save Receipt'}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -495,7 +570,7 @@ export default function InvoicesPage() {
 
               {/* Loan record payment button */}
               {inv.isLoan && remaining(inv) > 0 && (
-                <button type="button" onClick={() => openPayModal(inv)}
+                <button type="button" onClick={() => void openPayModal(inv)}
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-red-500/15 text-red-400 hover:bg-red-500/25 py-2 text-sm font-medium transition-colors">
                   <DollarSign size={14} /> Record Payment
                 </button>
@@ -574,7 +649,7 @@ export default function InvoicesPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2 justify-end">
                       {inv.isLoan && remaining(inv) > 0 && (
-                        <button type="button" onClick={() => openPayModal(inv)}
+                        <button type="button" onClick={() => void openPayModal(inv)}
                           className="p-1.5 rounded-lg hover:bg-red-500/20 text-red-400 transition-colors" title="Record payment">
                           <DollarSign size={15} />
                         </button>
