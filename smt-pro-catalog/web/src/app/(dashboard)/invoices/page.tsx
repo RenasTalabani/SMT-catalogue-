@@ -15,6 +15,7 @@ interface Invoice {
   paidAmount:    number;
   isLoan:        boolean;
   customerName:  string | null;
+  customerPhone: string | null;
   paymentMethod: string;
   createdAt:     string;
   pdfUrl:        string | null;
