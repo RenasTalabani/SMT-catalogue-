@@ -83,6 +83,17 @@ export const previewPDF = async (req: Request, res: Response): Promise<void> => 
   } catch (e) { resolve(e as Error, res); }
 };
 
+// PATCH /api/invoices/:id/items
+export const editItems = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id    = parseInt(req.params['id']!);
+    const items = (req.body as { items: invoiceService.EditItemInput[] }).items;
+    if (!Array.isArray(items) || !items.length) { error(res, 'items array is required', 400); return; }
+    const inv = await invoiceService.editItems(id, items);
+    success(res, inv, 'Invoice items updated');
+  } catch (e) { resolve(e as Error, res); }
+};
+
 // PATCH /api/invoices/:id/edit
 export const editInvoice = async (req: AuthRequest, res: Response): Promise<void> => {
   try {

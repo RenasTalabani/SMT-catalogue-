@@ -1,11 +1,21 @@
 'use client';
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileText, Download, Eye, Search, CheckCircle, Clock, XCircle, Printer, DollarSign, X, Trash2, Pencil } from 'lucide-react';
+import { FileText, Download, Eye, Search, CheckCircle, Clock, XCircle, Printer, DollarSign, X, Trash2, Pencil, ListOrdered, Plus } from 'lucide-react';
 import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
 import Header from '@/components/layout/Header';
 import { useAuthStore } from '@/store/auth.store';
+
+interface InvoiceItem {
+  id:          number;
+  productName: string;
+  productSku:  string | null;
+  quantity:    number;
+  unitPrice:   number;
+  discount:    number;
+  total:       number;
+}
 
 interface Invoice {
   id:            number;
@@ -20,6 +30,15 @@ interface Invoice {
   createdAt:     string;
   pdfUrl:        string | null;
   createdBy:     { name: string };
+  items?:        InvoiceItem[];
+}
+
+interface EditItemRow {
+  productName: string;
+  productSku:  string;
+  quantity:    string;
+  unitPrice:   string;
+  salePrice:   string;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -49,6 +68,9 @@ export default function InvoicesPage() {
   const [editModal, setEditModal]         = useState<Invoice | null>(null);
   const [editLoading, setEditLoading]     = useState(false);
   const [editForm, setEditForm]           = useState({ customerName: '', customerPhone: '', paymentMethod: 'CASH', paidAmount: '', isLoan: false, status: '', notes: '' });
+  const [itemsModal, setItemsModal]       = useState<Invoice | null>(null);
+  const [itemsLoading, setItemsLoading]   = useState(false);
+  const [itemRows, setItemRows]           = useState<EditItemRow[]>([]);
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -106,6 +128,57 @@ export default function InvoicesPage() {
       toast.error(e instanceof Error ? e.message : 'Failed to delete invoice');
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  const openItems = async (inv: Invoice) => {
+    // Fetch full invoice to get items
+    try {
+      const res = await api.get(`/invoices/${inv.id}`);
+      const full = res.data.data as Invoice;
+      const rows: EditItemRow[] = (full.items ?? []).map((it) => ({
+        productName: it.productName,
+        productSku:  it.productSku ?? '',
+        quantity:    String(it.quantity),
+        unitPrice:   String(it.unitPrice + it.discount),  // original = salePrice + perUnitDiscount
+        salePrice:   String(it.unitPrice),
+      }));
+      setItemRows(rows.length ? rows : [{ productName: '', productSku: '', quantity: '1', unitPrice: '', salePrice: '' }]);
+      setItemsModal(inv);
+    } catch {
+      toast.error('Failed to load invoice items');
+    }
+  };
+
+  const addItemRow    = () => setItemRows((r) => [...r, { productName: '', productSku: '', quantity: '1', unitPrice: '', salePrice: '' }]);
+  const removeItemRow = (i: number) => setItemRows((r) => r.filter((_, idx) => idx !== i));
+  const setItemField  = (i: number, k: keyof EditItemRow, v: string) =>
+    setItemRows((r) => r.map((row, idx) => idx === i ? { ...row, [k]: v } : row));
+
+  const itemsRunningTotal = itemRows.reduce((s, r) => s + (parseFloat(r.salePrice) || 0) * (parseInt(r.quantity) || 0), 0);
+
+  const submitItems = async () => {
+    if (!itemsModal) return;
+    const items = itemRows.filter((r) => r.productName.trim());
+    if (!items.length) { toast.error('Add at least one item'); return; }
+    setItemsLoading(true);
+    try {
+      await api.patch(`/invoices/${itemsModal.id}/items`, {
+        items: items.map((r) => ({
+          productName: r.productName.trim(),
+          productSku:  r.productSku.trim() || null,
+          quantity:    parseInt(r.quantity) || 1,
+          unitPrice:   parseFloat(r.unitPrice) || parseFloat(r.salePrice) || 0,
+          salePrice:   parseFloat(r.salePrice) || 0,
+        })),
+      });
+      toast.success('Invoice items updated');
+      void queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      setItemsModal(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to update items');
+    } finally {
+      setItemsLoading(false);
     }
   };
 
@@ -189,6 +262,80 @@ export default function InvoicesPage() {
           </div>
         </div>
       )}
+      {/* ── Edit items modal ──────────────────────────────────────────────── */}
+      {itemsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="bg-dark-surface border border-dark-border rounded-2xl p-6 w-full max-w-3xl flex flex-col max-h-[90vh] shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-white text-base">
+                Edit Items — <span className="text-primary font-mono">{itemsModal.invoiceNumber}</span>
+              </h3>
+              <button type="button" onClick={() => setItemsModal(null)} title="Close"
+                className="p-1.5 rounded-lg hover:bg-dark-card text-[#94A3B8] hover:text-white transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Column headers */}
+            <div className="grid grid-cols-12 gap-2 text-[10px] text-[#64748B] uppercase tracking-wide px-1 mb-1">
+              <span className="col-span-4">Product Name</span>
+              <span className="col-span-2">SKU</span>
+              <span className="col-span-1">Qty</span>
+              <span className="col-span-2">Unit Price</span>
+              <span className="col-span-2">Sale Price</span>
+              <span className="col-span-1"></span>
+            </div>
+
+            {/* Item rows */}
+            <div className="overflow-y-auto flex-1 space-y-2 pr-1">
+              {itemRows.map((row, i) => {
+                const lineSale = (parseFloat(row.salePrice) || 0) * (parseInt(row.quantity) || 0);
+                return (
+                  <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                    <input title="Product name" placeholder="Product name" className="input col-span-4 text-xs py-1.5"
+                      value={row.productName} onChange={(e) => setItemField(i, 'productName', e.target.value)} />
+                    <input title="SKU" placeholder="SKU" className="input col-span-2 text-xs py-1.5"
+                      value={row.productSku} onChange={(e) => setItemField(i, 'productSku', e.target.value)} />
+                    <input type="number" min="1" title="Quantity" placeholder="1" className="input col-span-1 text-xs py-1.5 text-center"
+                      value={row.quantity} onChange={(e) => setItemField(i, 'quantity', e.target.value)} />
+                    <input type="number" min="0" step="0.01" title="Original price" placeholder="0.00" className="input col-span-2 text-xs py-1.5"
+                      value={row.unitPrice} onChange={(e) => setItemField(i, 'unitPrice', e.target.value)} />
+                    <div className="col-span-2 space-y-0.5">
+                      <input type="number" min="0" step="0.01" title="Sale price" placeholder="0.00" className="input w-full text-xs py-1.5"
+                        value={row.salePrice} onChange={(e) => setItemField(i, 'salePrice', e.target.value)} />
+                      {lineSale > 0 && <p className="text-[10px] text-primary text-right">${lineSale.toFixed(2)}</p>}
+                    </div>
+                    <button type="button" title="Remove row" onClick={() => removeItemRow(i)}
+                      className="col-span-1 flex justify-center p-1.5 rounded-lg hover:bg-red-500/10 text-[#64748B] hover:text-red-400 transition-colors">
+                      <X size={14} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className="mt-4 pt-3 border-t border-dark-border space-y-3">
+              <div className="flex items-center justify-between">
+                <button type="button" onClick={addItemRow}
+                  className="flex items-center gap-1.5 text-xs text-primary hover:underline">
+                  <Plus size={13} /> Add row
+                </button>
+                <div className="text-sm font-bold text-white">
+                  New subtotal: <span className="text-primary">${itemsRunningTotal.toFixed(2)}</span>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setItemsModal(null)} className="btn-secondary flex-1 text-sm">Cancel</button>
+                <button type="button" onClick={submitItems} disabled={itemsLoading} className="btn-primary flex-1 text-sm disabled:opacity-50">
+                  {itemsLoading ? 'Saving…' : 'Save Items & Recalculate Total'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Edit invoice modal ────────────────────────────────────────────── */}
       {editModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
@@ -369,6 +516,12 @@ export default function InvoicesPage() {
                   <Download size={15} />
                 </button>
                 {isAdmin && (
+                  <button type="button" onClick={() => void openItems(inv)} title="Edit items" aria-label="Edit items"
+                    className="flex items-center justify-center rounded-xl bg-dark-card text-[#94A3B8] hover:text-yellow-400 hover:bg-yellow-500/10 px-3 py-2 transition-colors">
+                    <ListOrdered size={15} />
+                  </button>
+                )}
+                {isAdmin && (
                   <button type="button" onClick={() => openEdit(inv)} title="Edit invoice" aria-label="Edit invoice"
                     className="flex items-center justify-center rounded-xl bg-dark-card text-[#94A3B8] hover:text-primary hover:bg-primary/10 px-3 py-2 transition-colors">
                     <Pencil size={15} />
@@ -434,6 +587,12 @@ export default function InvoicesPage() {
                         className="p-1.5 rounded-lg hover:bg-dark-card text-[#94A3B8] hover:text-green-400 transition-colors" title="Download">
                         <Download size={15} />
                       </button>
+                      {isAdmin && (
+                        <button type="button" onClick={() => void openItems(inv)}
+                          className="p-1.5 rounded-lg hover:bg-yellow-500/10 text-[#94A3B8] hover:text-yellow-400 transition-colors" title="Edit items">
+                          <ListOrdered size={15} />
+                        </button>
+                      )}
                       {isAdmin && (
                         <button type="button" onClick={() => openEdit(inv)}
                           className="p-1.5 rounded-lg hover:bg-primary/10 text-[#94A3B8] hover:text-primary transition-colors" title="Edit invoice">

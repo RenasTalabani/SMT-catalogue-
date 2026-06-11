@@ -364,6 +364,53 @@ export const getOutstandingLoans = async () => {
   };
 };
 
+// ── Edit invoice items (admin) ────────────────────────────────────────────────
+export interface EditItemInput {
+  productName: string;
+  productSku?:  string | null;
+  quantity:    number;
+  unitPrice:   number;  // original/catalog price shown as strikethrough
+  salePrice:   number;  // actual price charged per unit
+}
+
+export const editItems = async (id: number, newItems: EditItemInput[]) => {
+  const inv = await prisma.invoice.findUnique({ where: { id } });
+  if (!inv) throw new Error('INVOICE_NOT_FOUND');
+  if (!newItems.length) throw new Error('ITEMS_REQUIRED');
+
+  const subtotal = parseFloat(newItems.reduce((s, i) => s + i.salePrice * i.quantity, 0).toFixed(2));
+  const discountAmount = inv.discountType === 'PERCENTAGE'
+    ? parseFloat(((subtotal * inv.discountValue) / 100).toFixed(2))
+    : inv.discountValue;
+  const taxAmount = parseFloat((((subtotal - discountAmount) * inv.taxRate) / 100).toFixed(2));
+  const total     = parseFloat((subtotal - discountAmount + taxAmount).toFixed(2));
+
+  // Batch: replace items + update invoice totals
+  await prisma.$transaction([
+    prisma.invoiceItem.deleteMany({ where: { invoiceId: id } }),
+    prisma.invoiceItem.createMany({
+      data: newItems.map((i) => ({
+        invoiceId:   id,
+        productName: i.productName.trim(),
+        productSku:  i.productSku ?? null,
+        quantity:    i.quantity,
+        unitPrice:   i.unitPrice,
+        discount:    parseFloat((i.unitPrice - i.salePrice).toFixed(2)),
+        total:       parseFloat((i.salePrice * i.quantity).toFixed(2)),
+      })),
+    }),
+    prisma.invoice.update({
+      where: { id },
+      data:  { subtotal, discountAmount, taxAmount, total },
+    }),
+  ]);
+
+  return prisma.invoice.findUnique({
+    where:   { id },
+    include: { items: true, createdBy: { select: { name: true } }, payments: { orderBy: { paidAt: 'asc' } } },
+  });
+};
+
 // ── Edit invoice (admin) ──────────────────────────────────────────────────────
 export interface InvoiceEditInput {
   customerName?:  string | null;
