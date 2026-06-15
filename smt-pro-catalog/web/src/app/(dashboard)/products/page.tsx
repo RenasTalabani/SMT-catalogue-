@@ -34,6 +34,7 @@ interface Product {
   imageUrl:      string | null;
   description:   string | null;
   sku:           string | null;
+  unit:          string;
   images:        ProductImage[];
 }
 
@@ -509,7 +510,7 @@ export default function ProductsPage() {
                         <button
                           type="button"
                           disabled={p.quantity === 0 || !p.isActive}
-                          onClick={() => { addItem({ id: p.id, name: p.name, price: p.price, discountPrice: p.discountPrice, imageUrl: p.imageUrl }); }}
+                          onClick={() => { addItem({ id: p.id, name: p.name, price: p.price, discountPrice: p.discountPrice, imageUrl: p.imageUrl, unit: p.unit ?? 'piece' }); }}
                           className="inline-flex items-center gap-1.5 rounded-xl bg-green-500/15 px-3 py-1.5 text-xs font-semibold text-green-400 hover:bg-green-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                           title={p.quantity === 0 ? 'Out of stock' : 'Add to cart'}
                         >

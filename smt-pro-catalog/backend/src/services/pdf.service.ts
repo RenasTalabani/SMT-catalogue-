@@ -213,6 +213,7 @@ interface InvoiceData {
     productName: string;
     productSku?: string | null;
     quantity:    number;
+    unit?:       string;
     unitPrice:   number;
     discount:    number;
     total:       number;
@@ -363,8 +364,9 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
       doc.fillColor(GREY).font('Helvetica').fontSize(7.5)
          .text(item.productSku ?? '—', C.sku + 3, y + 5, { width: 58 });
 
+      const qtyLabel = item.unit ? `${item.quantity} ${item.unit}` : String(item.quantity);
       doc.fillColor(DARK).font('Helvetica').fontSize(7.5)
-         .text(String(item.quantity), C.qty + 3, y + 5);
+         .text(qtyLabel, C.qty + 3, y + 5, { width: 52 });
 
       if (hasDsc) {
         // UNIT: original price with strikethrough
@@ -400,6 +402,14 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     });
 
     doc.moveTo(L, y).lineTo(RE, y).strokeColor(LGREY).lineWidth(0.7).stroke();
+    y += 6;
+
+    // ── Total quantity row ────────────────────────────────────────────────────
+    const totalQty = data.items.reduce((s, i) => s + i.quantity, 0);
+    doc.fillColor(GREY).font('Helvetica').fontSize(8)
+       .text(`Total Items: `, L, y, { continued: true })
+       .fillColor(DARK).font('Helvetica-Bold')
+       .text(`${totalQty}`, { lineBreak: false });
     y += 14;
 
     // ── 7. TOTALS ─────────────────────────────────────────────────────────────
@@ -527,7 +537,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     doc.rect(L, footY, W, 0.7).fill(LGREY);
     doc.fillColor(GREY).font('Helvetica').fontSize(7.5)
        .text(
-         'DAR AL IRAQ  |  Address: Talary Shusha  |  Phone: +9647709199000',
+         'DAR AL IRAQ  |  بغداد حي تونس شارع 600 عمارة حميد  |  Baghdad, Tunis District, Street 600, Hamid Building  |  Tel: +9647709199000',
          L, footY + 7, { align: 'center', width: W },
        );
 

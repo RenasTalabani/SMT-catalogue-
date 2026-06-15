@@ -12,6 +12,7 @@ interface InvoiceItem {
   productName: string;
   productSku:  string | null;
   quantity:    number;
+  unit:        string;
   unitPrice:   number;
   discount:    number;
   total:       number;
@@ -48,6 +49,7 @@ interface EditItemRow {
   productName: string;
   productSku:  string;
   quantity:    string;
+  unit:        string;
   unitPrice:   string;
   salePrice:   string;
 }
@@ -173,17 +175,18 @@ export default function InvoicesPage() {
         productName: it.productName,
         productSku:  it.productSku ?? '',
         quantity:    String(it.quantity),
+        unit:        it.unit ?? 'piece',
         unitPrice:   String(it.unitPrice + it.discount),  // original = salePrice + perUnitDiscount
         salePrice:   String(it.unitPrice),
       }));
-      setItemRows(rows.length ? rows : [{ productName: '', productSku: '', quantity: '1', unitPrice: '', salePrice: '' }]);
+      setItemRows(rows.length ? rows : [{ productName: '', productSku: '', quantity: '1', unit: 'piece', unitPrice: '', salePrice: '' }]);
       setItemsModal(inv);
     } catch {
       toast.error('Failed to load invoice items');
     }
   };
 
-  const addItemRow    = () => setItemRows((r) => [...r, { productName: '', productSku: '', quantity: '1', unitPrice: '', salePrice: '' }]);
+  const addItemRow    = () => setItemRows((r) => [...r, { productName: '', productSku: '', quantity: '1', unit: 'piece', unitPrice: '', salePrice: '' }]);
   const removeItemRow = (i: number) => setItemRows((r) => r.filter((_, idx) => idx !== i));
   const setItemField  = (i: number, k: keyof EditItemRow, v: string) =>
     setItemRows((r) => r.map((row, idx) => idx === i ? { ...row, [k]: v } : row));
@@ -201,6 +204,7 @@ export default function InvoicesPage() {
           productName: r.productName.trim(),
           productSku:  r.productSku.trim() || null,
           quantity:    parseInt(r.quantity) || 1,
+          unit:        r.unit.trim() || 'piece',
           unitPrice:   parseFloat(r.unitPrice) || parseFloat(r.salePrice) || 0,
           salePrice:   parseFloat(r.salePrice) || 0,
         })),
@@ -263,7 +267,7 @@ export default function InvoicesPage() {
           <div className="bg-dark-surface border border-dark-border rounded-2xl p-6 w-full max-w-md space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-white text-base">Record Payment</h3>
-              <button type="button" onClick={() => setPayModal(null)}
+              <button type="button" title="Close" onClick={() => setPayModal(null)}
                 className="p-1.5 rounded-lg hover:bg-dark-card text-[#94A3B8] hover:text-white transition-colors">
                 <X size={16} />
               </button>
@@ -351,11 +355,12 @@ export default function InvoicesPage() {
               </button>
             </div>
 
-            {/* Column headers — 3+2+2+2+2+1=12 */}
+            {/* Column headers — 3+2+1+1+2+2+1=12 */}
             <div className="grid grid-cols-12 gap-2 text-[10px] text-[#64748B] uppercase tracking-wide px-1 mb-1">
               <span className="col-span-3">Product Name</span>
               <span className="col-span-2">SKU</span>
-              <span className="col-span-2">Qty</span>
+              <span className="col-span-1">Qty</span>
+              <span className="col-span-1">Unit</span>
               <span className="col-span-2">Orig. Price</span>
               <span className="col-span-2">Sale Price</span>
               <span className="col-span-1"></span>
@@ -371,8 +376,10 @@ export default function InvoicesPage() {
                       value={row.productName} onChange={(e) => setItemField(i, 'productName', e.target.value)} />
                     <input title="SKU" placeholder="SKU" className="input col-span-2 text-xs py-1.5"
                       value={row.productSku} onChange={(e) => setItemField(i, 'productSku', e.target.value)} />
-                    <input type="number" min="1" title="Quantity" placeholder="1" className="input col-span-2 text-xs py-1.5 text-center"
+                    <input type="number" min="1" title="Quantity" placeholder="1" className="input col-span-1 text-xs py-1.5 text-center"
                       value={row.quantity} onChange={(e) => setItemField(i, 'quantity', e.target.value)} />
+                    <input title="Unit (e.g. piece, kg, box)" placeholder="pcs" className="input col-span-1 text-xs py-1.5"
+                      value={row.unit} onChange={(e) => setItemField(i, 'unit', e.target.value)} />
                     <input type="number" min="0" step="0.01" title="Original price" placeholder="0.00" className="input col-span-2 text-xs py-1.5"
                       value={row.unitPrice} onChange={(e) => setItemField(i, 'unitPrice', e.target.value)} />
                     <div className="col-span-2 space-y-0.5">

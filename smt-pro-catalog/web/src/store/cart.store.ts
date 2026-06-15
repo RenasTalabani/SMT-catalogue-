@@ -9,6 +9,7 @@ export interface CartItem {
   discountPrice?: number | null;
   quantity:      number;
   imageUrl?:     string | null;
+  unit:          string;   // e.g. "piece", "kg", "box"
 }
 
 interface CartStore {

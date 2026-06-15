@@ -195,6 +195,9 @@ export default function CartPanel() {
                       <Plus size={10} />
                     </button>
                   </div>
+                  {item.unit && (
+                    <span className="text-[10px] text-[#64748B] flex-shrink-0">{item.unit}</span>
+                  )}
                   <button type="button" title="Remove" onClick={() => removeItem(item.id)}
                     className="p-1 rounded-lg hover:bg-danger/20 text-[#94A3B8] hover:text-danger transition-colors flex-shrink-0">
                     <Trash2 size={13} />

@@ -59,7 +59,7 @@ export const createFromOrder = async (
 ) => {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: { include: { product: { select: { name: true, sku: true } } } } },
+    include: { items: { include: { product: { select: { name: true, sku: true, unit: true } } } } },
   });
   if (!order) throw new Error('ORDER_NOT_FOUND');
 
@@ -114,6 +114,7 @@ export const createFromOrder = async (
           productName: i.product.name,
           productSku:  i.product.sku ?? null,
           quantity:    i.quantity,
+          unit:        i.product.unit ?? 'piece',
           unitPrice:   i.price,
           discount:    i.discount,
           total:       parseFloat((i.price * i.quantity).toFixed(2)),
@@ -161,6 +162,7 @@ export const createFromOrder = async (
       productName: i.product.name,
       productSku:  i.product.sku ?? null,
       quantity:    i.quantity,
+      unit:        i.product.unit ?? 'piece',
       unitPrice:   i.price,
       discount:    i.discount,
       total:       parseFloat((i.price * i.quantity).toFixed(2)),
@@ -479,6 +481,7 @@ export interface EditItemInput {
   productName: string;
   productSku?:  string | null;
   quantity:    number;
+  unit?:       string;
   unitPrice:   number;  // original/catalog price shown as strikethrough
   salePrice:   number;  // actual price charged per unit
 }
@@ -504,6 +507,7 @@ export const editItems = async (id: number, newItems: EditItemInput[]) => {
         productName: i.productName.trim(),
         productSku:  i.productSku ?? null,
         quantity:    i.quantity,
+        unit:        i.unit?.trim() || 'piece',
         unitPrice:   i.unitPrice,
         discount:    parseFloat((i.unitPrice - i.salePrice).toFixed(2)),
         total:       parseFloat((i.salePrice * i.quantity).toFixed(2)),

@@ -491,6 +491,7 @@ model InvoiceItem {
   productName String
   productSku  String?
   quantity    Int
+  unit        String  @default("piece")
   unitPrice   Float
   discount    Float   @default(0)
   total       Float
