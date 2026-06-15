@@ -63,7 +63,7 @@ function drawLogo(doc: InstanceType<typeof PDFDocument>, lx: number, ly: number,
   doc.fillColor(WHITE)
      .font('Helvetica-Bold')
      .fontSize(h * 0.30)
-     .text('DAR AL IRAQ', tx, ly + h * 0.20, { lineBreak: false });
+     .text('ZMRUD BAGHDAD', tx, ly + h * 0.20, { lineBreak: false });
 
   doc.fillColor(SILVER)
      .font('Helvetica')
@@ -72,7 +72,7 @@ function drawLogo(doc: InstanceType<typeof PDFDocument>, lx: number, ly: number,
 }
 
 // ── Footer address ────────────────────────────────────────────────────────────
-const FOOTER = 'DAR AL IRAQ   |   Baghdad, Tunis District, Street 600, Hamid Building   |   +964 770 919 9000';
+const FOOTER = 'ZMRUD BAGHDAD   |   Baghdad, Tunis District, Street 600, Hamid Building';
 
 // ── Payment receipt interface ─────────────────────────────────────────────────
 export interface PaymentReceiptData {
@@ -392,9 +392,9 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     const totalQty = data.items.reduce((s, i) => s + i.quantity, 0);
     doc.rect(L, y, W, 14).fill('#F0F4FF');
     doc.fillColor(GREY).font('Helvetica').fontSize(7)
-       .text('Total Quantity:', L + 4, y + 4, { lineBreak: false });
+       .text('Total Qty:', C.name + 2, y + 4, { lineBreak: false });
     doc.fillColor(DARK).font('Helvetica-Bold').fontSize(7)
-       .text(String(totalQty), RE - 104, y + 4, { align: 'right', width: 100, lineBreak: false });
+       .text(String(totalQty), C.qty + 2, y + 4, { align: 'right', width: 38, lineBreak: false });
     y += 14;
 
     doc.moveTo(L, y).lineTo(RE, y).strokeColor(LGREY).lineWidth(0.7).stroke();
