@@ -355,11 +355,11 @@ export default function InvoicesPage() {
               </button>
             </div>
 
-            {/* Column headers — 3+2+1+1+2+2+1=12 */}
+            {/* Column headers — 3+1+2+1+2+2+1=12 */}
             <div className="grid grid-cols-12 gap-2 text-[10px] text-[#64748B] uppercase tracking-wide px-1 mb-1">
               <span className="col-span-3">Product Name</span>
-              <span className="col-span-2">SKU</span>
-              <span className="col-span-1">Qty</span>
+              <span className="col-span-1">SKU</span>
+              <span className="col-span-2">Qty</span>
               <span className="col-span-1">Unit</span>
               <span className="col-span-2">Orig. Price</span>
               <span className="col-span-2">Sale Price</span>
@@ -374,9 +374,9 @@ export default function InvoicesPage() {
                   <div key={i} className="grid grid-cols-12 gap-2 items-start">
                     <input title="Product name" placeholder="Product name" className="input col-span-3 text-xs py-1.5"
                       value={row.productName} onChange={(e) => setItemField(i, 'productName', e.target.value)} />
-                    <input title="SKU" placeholder="SKU" className="input col-span-2 text-xs py-1.5"
+                    <input title="SKU" placeholder="SKU" className="input col-span-1 text-xs py-1.5"
                       value={row.productSku} onChange={(e) => setItemField(i, 'productSku', e.target.value)} />
-                    <input type="number" min="1" title="Quantity" placeholder="1" className="input col-span-1 text-xs py-1.5 text-center"
+                    <input type="number" min="1" title="Quantity" placeholder="1" className="input col-span-2 text-xs py-1.5 text-center"
                       value={row.quantity} onChange={(e) => setItemField(i, 'quantity', e.target.value)} />
                     <input title="Unit (e.g. piece, kg, box)" placeholder="pcs" className="input col-span-1 text-xs py-1.5"
                       value={row.unit} onChange={(e) => setItemField(i, 'unit', e.target.value)} />
