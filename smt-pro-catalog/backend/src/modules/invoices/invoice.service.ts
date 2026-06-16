@@ -568,7 +568,11 @@ export const editItems = async (id: number, newItems: EditItemInput[]) => {
     }),
   ]);
 
-  if (stockOps.length > 0) await invalidate('products:');
+  if (stockOps.length > 0) {
+    await invalidate('products:');
+    await invalidate('reports:');
+    await invalidate('dashboard:');
+  }
 
   await refreshStoredPDF(id);
 

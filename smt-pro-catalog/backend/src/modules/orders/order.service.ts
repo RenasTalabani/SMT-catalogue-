@@ -120,6 +120,8 @@ export const create = async (userId: number, input: CreateOrderInput) => {
   ]);
 
   await invalidate('products:');
+  await invalidate('reports:');
+  await invalidate('dashboard:');
   getIO()?.to('all').emit('order:created', { id: order.id, totalAmount, finalAmount, userId, itemCount: items.length });
   void fireWebhook('order.created', { id: order.id, totalAmount, finalAmount, status: 'PENDING', itemCount: items.length });
 
@@ -185,6 +187,8 @@ export const remove = async (id: string | number): Promise<void> => {
       ),
     );
     await invalidate('products:');
+    await invalidate('reports:');
+    await invalidate('dashboard:');
   }
   await prisma.order.delete({ where: { id: oid } });
   // All cascades (Invoice, OrderItem, ReturnRequest, CouponUsage, etc.) handled by schema
@@ -209,6 +213,8 @@ export const updateStatus = async (id: string | number, status: string) => {
       ),
     );
     await invalidate('products:');
+    await invalidate('reports:');
+    await invalidate('dashboard:');
   }
 
   getIO()?.to('all').emit('order:updated', { id: order.id, status });
