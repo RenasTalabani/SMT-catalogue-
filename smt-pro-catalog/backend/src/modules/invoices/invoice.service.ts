@@ -508,7 +508,7 @@ export const editItems = async (id: number, newItems: EditItemInput[]) => {
         productSku:  i.productSku ?? null,
         quantity:    i.quantity,
         unit:        i.unit?.trim() || 'piece',
-        unitPrice:   i.unitPrice,
+        unitPrice:   i.salePrice,
         discount:    parseFloat((i.unitPrice - i.salePrice).toFixed(2)),
         total:       parseFloat((i.salePrice * i.quantity).toFixed(2)),
       })),
