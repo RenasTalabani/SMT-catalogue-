@@ -12,6 +12,8 @@ const ERR: Record<string, { s: number; m: string }> = {
 };
 
 const resolve = (e: Error, res: Response): Response => {
+  if (e.message.startsWith('INSUFFICIENT_STOCK:'))
+    return error(res, `Insufficient stock for: ${e.message.split(':')[1]}`, 409);
   const m = ERR[e.message];
   return error(res, m?.m ?? e.message, m?.s ?? 500);
 };

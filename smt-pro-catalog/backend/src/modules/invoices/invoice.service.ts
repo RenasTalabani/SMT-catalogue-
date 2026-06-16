@@ -3,6 +3,7 @@ import { generateInvoicePDF, generateReceiptPDF } from '../../services/pdf.servi
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 import { createNotification } from '../notifications/notification.service';
+import { invalidate } from '../../shared/utils/cache.util';
 
 const BUCKET = 'invoices';
 
@@ -487,7 +488,7 @@ export interface EditItemInput {
 }
 
 export const editItems = async (id: number, newItems: EditItemInput[]) => {
-  const inv = await prisma.invoice.findUnique({ where: { id } });
+  const inv = await prisma.invoice.findUnique({ where: { id }, include: { items: true } });
   if (!inv) throw new Error('INVOICE_NOT_FOUND');
   if (!newItems.length) throw new Error('ITEMS_REQUIRED');
 
@@ -498,8 +499,56 @@ export const editItems = async (id: number, newItems: EditItemInput[]) => {
   const taxAmount = parseFloat((((subtotal - discountAmount) * inv.taxRate) / 100).toFixed(2));
   const total     = parseFloat((subtotal - discountAmount + taxAmount).toFixed(2));
 
-  // Batch: replace items + update invoice totals
+  // ── Reconcile product stock with the quantity change ────────────────────────
+  // Match old vs new line items by SKU (fallback: product name) and adjust
+  // Product.quantity by the net change in quantity sold (delta = newQty - oldQty).
+  // e.g. stock 50, sold 25 (stock→25), edit invoice to 30 → delta +5 → stock→20.
+  const keyOf = (sku: string | null | undefined, name: string) =>
+    sku && sku.trim() ? `sku:${sku.trim()}` : `name:${name.trim()}`;
+
+  const oldQtyByKey = new Map<string, number>();
+  for (const it of inv.items) {
+    const k = keyOf(it.productSku, it.productName);
+    oldQtyByKey.set(k, (oldQtyByKey.get(k) ?? 0) + it.quantity);
+  }
+  const newQtyByKey = new Map<string, number>();
+  const metaByKey   = new Map<string, { sku: string | null; name: string }>();
+  for (const it of newItems) {
+    const k = keyOf(it.productSku, it.productName);
+    newQtyByKey.set(k, (newQtyByKey.get(k) ?? 0) + it.quantity);
+    metaByKey.set(k, { sku: it.productSku ?? null, name: it.productName });
+  }
+  for (const it of inv.items) {
+    const k = keyOf(it.productSku, it.productName);
+    if (!metaByKey.has(k)) metaByKey.set(k, { sku: it.productSku ?? null, name: it.productName });
+  }
+
+  const allKeys  = new Set([...oldQtyByKey.keys(), ...newQtyByKey.keys()]);
+  const stockOps: Array<ReturnType<typeof prisma.product.update>> = [];
+
+  for (const k of allKeys) {
+    const delta = (newQtyByKey.get(k) ?? 0) - (oldQtyByKey.get(k) ?? 0);
+    if (delta === 0) continue;
+
+    const meta    = metaByKey.get(k)!;
+    const product = meta.sku
+      ? await prisma.product.findUnique({ where: { sku: meta.sku } })
+      : await prisma.product.findFirst({ where: { name: meta.name } });
+    if (!product) continue; // no catalog match (e.g. a free-text line item) — skip stock sync
+
+    if (delta > 0 && product.quantity < delta) throw new Error(`INSUFFICIENT_STOCK:${product.name}`);
+
+    stockOps.push(
+      prisma.product.update({
+        where: { id: product.id },
+        data:  delta > 0 ? { quantity: { decrement: delta } } : { quantity: { increment: -delta } },
+      }),
+    );
+  }
+
+  // Batch: adjust stock + replace items + update invoice totals
   await prisma.$transaction([
+    ...stockOps,
     prisma.invoiceItem.deleteMany({ where: { invoiceId: id } }),
     prisma.invoiceItem.createMany({
       data: newItems.map((i) => ({
@@ -518,6 +567,8 @@ export const editItems = async (id: number, newItems: EditItemInput[]) => {
       data:  { subtotal, discountAmount, taxAmount, total },
     }),
   ]);
+
+  if (stockOps.length > 0) await invalidate('products:');
 
   await refreshStoredPDF(id);
 
