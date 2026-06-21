@@ -1,6 +1,8 @@
 # ─── Stage 1: Build ─────────────────────────────────────── v3.0.1 ───────────
 FROM node:22-alpine AS builder
 
+RUN apk add --no-cache openssl
+
 WORKDIR /app
 
 # OpenSSL required by Prisma migration engine on Alpine
@@ -17,6 +19,8 @@ RUN npm run build
 
 # ─── Stage 2: Production ──────────────────────────────────────────────────────
 FROM node:22-alpine AS production
+
+RUN apk add --no-cache openssl
 
 WORKDIR /app
 
