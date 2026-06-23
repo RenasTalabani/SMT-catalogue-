@@ -88,6 +88,14 @@ router.post(
   invoiceController.addPayment as unknown as RequestHandler,
 );
 
+// Delete a specific payment (admin only)
+router.delete(
+  '/:id/payment/:paymentId',
+  restrictTo('super_admin', 'admin') as RequestHandler,
+  auditMiddleware('DELETE', 'InvoicePayment') as RequestHandler,
+  invoiceController.deletePayment as unknown as RequestHandler,
+);
+
 // Download a specific payment receipt PDF
 router.get(
   '/:id/payment/:paymentId/receipt',

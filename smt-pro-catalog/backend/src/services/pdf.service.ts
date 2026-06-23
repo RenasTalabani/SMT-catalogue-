@@ -202,6 +202,7 @@ interface InvoiceData {
   discountValue:    number;
   discountType:     string;
   isLoan?:          boolean;
+  showLoanSummary?: boolean;
   paidAmount?:      number;
   payments?:        Array<{ amount: number; notes?: string | null; paidAt: Date }>;
   items: Array<{
@@ -444,7 +445,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
     }
 
     // ── 8. LOAN / PAYMENT HISTORY ─────────────────────────────────────────────
-    if (data.isLoan) {
+    if (data.isLoan && data.showLoanSummary !== false) {
       const paidAmt   = data.paidAmount ?? 0;
       const remaining = parseFloat((data.total - paidAmt).toFixed(2));
       const payments  = data.payments ?? [];

@@ -6,6 +6,7 @@ import { AuthRequest } from '../../types';
 const ERR: Record<string, { s: number; m: string }> = {
   ORDER_NOT_FOUND:         { s: 404, m: 'Order not found' },
   INVOICE_NOT_FOUND:       { s: 404, m: 'Invoice not found' },
+  PAYMENT_NOT_FOUND:       { s: 404, m: 'Payment not found' },
   INVOICE_ALREADY_EXISTS:  { s: 409, m: 'Invoice already exists for this order' },
   NOT_A_LOAN:              { s: 400, m: 'This invoice is not a loan/installment invoice' },
   ALREADY_FULLY_PAID:      { s: 400, m: 'This invoice has already been fully paid' },
@@ -127,6 +128,16 @@ export const downloadPaymentReceipt = async (req: Request, res: Response): Promi
     } else {
       error(res, 'Receipt not available', 404);
     }
+  } catch (e) { resolve(e as Error, res); }
+};
+
+// DELETE /api/invoices/:id/payment/:paymentId
+export const deletePayment = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const invoiceId = parseInt(req.params['id']!);
+    const paymentId = parseInt(req.params['paymentId']!);
+    const result    = await invoiceService.deletePayment(invoiceId, paymentId);
+    success(res, result, 'Payment deleted');
   } catch (e) { resolve(e as Error, res); }
 };
 

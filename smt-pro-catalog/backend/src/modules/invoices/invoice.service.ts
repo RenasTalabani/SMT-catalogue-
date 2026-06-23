@@ -55,6 +55,7 @@ export const createFromOrder = async (
     discountValue?: number;
     notes?: string;
     isLoan?: boolean;
+    showLoanSummary?: boolean;
     initialPayment?: number;
   },
 ) => {
@@ -70,8 +71,9 @@ export const createFromOrder = async (
   const taxRate       = opts?.taxRate ?? 0;
   const discountType  = opts?.discountType ?? 'FIXED';
   const discountValue = opts?.discountValue ?? 0;
-  const isLoan        = opts?.isLoan ?? false;
-  const initialPayment = opts?.initialPayment ?? 0;
+  const isLoan           = opts?.isLoan ?? false;
+  const showLoanSummary  = opts?.showLoanSummary ?? true;
+  const initialPayment   = opts?.initialPayment ?? 0;
 
   const subtotal      = order.items.reduce((s, i) => s + i.price * i.quantity, 0);
   const discountAmount = discountType === 'PERCENTAGE'
@@ -106,6 +108,7 @@ export const createFromOrder = async (
       taxAmount,
       total,
       isLoan,
+      showLoanSummary,
       paidAmount,
       paymentMethod: order.paymentMethod,
       notes:         opts?.notes ?? null,
@@ -157,6 +160,7 @@ export const createFromOrder = async (
     customerAddress: opts?.customerAddress ?? null,
     subtotal, discountAmount, discountValue, discountType, taxRate, taxAmount, total,
     isLoan,
+    showLoanSummary,
     paidAmount,
     payments: pdfPayments,
     items: order.items.map((i) => ({
@@ -257,6 +261,7 @@ async function refreshStoredPDF(id: number): Promise<void> {
     taxAmount:       inv.taxAmount,
     total:           inv.total,
     isLoan:          inv.isLoan,
+    showLoanSummary: inv.showLoanSummary,
     paidAmount:      inv.paidAmount,
     payments:        inv.payments,
     items:           inv.items,
@@ -301,6 +306,7 @@ export const regeneratePDF = async (id: number): Promise<Buffer> => {
     taxAmount:       inv.taxAmount,
     total:           inv.total,
     isLoan:          inv.isLoan,
+    showLoanSummary: inv.showLoanSummary,
     paidAmount:      inv.paidAmount,
     payments:        inv.payments,
     items:           inv.items,
@@ -363,6 +369,7 @@ export const addPayment = async (invoiceId: number, amount: number, notes: strin
     taxAmount:       updated.taxAmount,
     total:           updated.total,
     isLoan:          updated.isLoan,
+    showLoanSummary: updated.showLoanSummary,
     paidAmount:      updated.paidAmount,
     payments:        updated.payments,
     items:           updated.items,
@@ -444,6 +451,74 @@ export const getPaymentReceipt = async (invoiceId: number, paymentId: number) =>
     createdByName:  payment.createdBy.name,
   });
   return { buffer: buf, receiptNumber: receiptNum };
+};
+
+// ── Delete a single payment and recalculate paidAmount ───────────────────────
+export const deletePayment = async (invoiceId: number, paymentId: number) => {
+  const inv = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    include: { payments: true },
+  });
+  if (!inv) throw new Error('INVOICE_NOT_FOUND');
+  if (!inv.isLoan) throw new Error('NOT_A_LOAN');
+
+  const payment = inv.payments.find((p) => p.id === paymentId);
+  if (!payment) throw new Error('PAYMENT_NOT_FOUND');
+
+  await prisma.invoicePayment.delete({ where: { id: paymentId } });
+
+  const newPaidAmount = parseFloat(
+    inv.payments.filter((p) => p.id !== paymentId).reduce((s, p) => s + p.amount, 0).toFixed(2),
+  );
+  const fullyPaid = newPaidAmount >= inv.total;
+
+  const updated = await prisma.invoice.update({
+    where: { id: invoiceId },
+    data: {
+      paidAmount: newPaidAmount,
+      status:     fullyPaid ? 'PAID' : 'ISSUED',
+      paidAt:     fullyPaid ? new Date() : null,
+    },
+    include: {
+      items:    true,
+      createdBy: { select: { name: true } },
+      payments: { orderBy: { paidAt: 'asc' } },
+    },
+  });
+
+  await generateInvoicePDF({
+    invoiceNumber:   updated.invoiceNumber,
+    issuedAt:        updated.issuedAt,
+    status:          updated.status,
+    paymentMethod:   updated.paymentMethod,
+    notes:           updated.notes,
+    customerName:    updated.customerName,
+    customerPhone:   updated.customerPhone,
+    customerEmail:   updated.customerEmail,
+    customerAddress: updated.customerAddress,
+    subtotal:        updated.subtotal,
+    discountAmount:  updated.discountAmount,
+    discountValue:   updated.discountValue,
+    discountType:    updated.discountType,
+    taxRate:         updated.taxRate,
+    taxAmount:       updated.taxAmount,
+    total:           updated.total,
+    isLoan:          updated.isLoan,
+    showLoanSummary: updated.showLoanSummary,
+    paidAmount:      updated.paidAmount,
+    payments:        updated.payments,
+    items:           updated.items,
+    createdBy:       updated.createdBy,
+  }).then((buf) => uploadPDF(buf, updated.invoiceNumber)).then((stored) => {
+    if (stored) {
+      return prisma.invoice.update({
+        where: { id: invoiceId },
+        data:  { pdfUrl: stored.url, pdfPublicId: stored.publicId },
+      });
+    }
+  }).catch(() => { /* non-fatal — PDF regeneration failure doesn't block the response */ });
+
+  return updated;
 };
 
 // ── Outstanding loans summary ─────────────────────────────────────────────────
@@ -584,13 +659,14 @@ export const editItems = async (id: number, newItems: EditItemInput[]) => {
 
 // ── Edit invoice (admin) ──────────────────────────────────────────────────────
 export interface InvoiceEditInput {
-  customerName?:  string | null;
-  customerPhone?: string | null;
-  paymentMethod?: string;
-  notes?:         string | null;
-  isLoan?:        boolean;
-  paidAmount?:    number;
-  status?:        string;
+  customerName?:    string | null;
+  customerPhone?:   string | null;
+  paymentMethod?:   string;
+  notes?:           string | null;
+  isLoan?:          boolean;
+  showLoanSummary?: boolean;
+  paidAmount?:      number;
+  status?:          string;
 }
 
 export const edit = async (id: number, data: InvoiceEditInput) => {

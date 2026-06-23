@@ -448,8 +448,9 @@ model Invoice {
   qrData          String?
 
   // Loan / installment support
-  isLoan          Boolean   @default(false)
-  paidAmount      Float     @default(0)
+  isLoan             Boolean   @default(false)
+  paidAmount         Float     @default(0)
+  showLoanSummary    Boolean   @default(true)
 
   issuedAt        DateTime  @default(now())
   paidAt          DateTime?

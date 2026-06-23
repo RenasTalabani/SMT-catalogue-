@@ -78,6 +78,7 @@ export default function InvoicesPage() {
   const [payLoading, setPayLoading]           = useState(false);
   const [payHistory, setPayHistory]           = useState<InvoicePaymentRecord[]>([]);
   const [lastReceiptUrl, setLastReceiptUrl]   = useState<string | null>(null);
+  const [deletingPaymentId, setDeletingPaymentId] = useState<number | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Invoice | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [editModal, setEditModal]         = useState<Invoice | null>(null);
@@ -148,6 +149,25 @@ export default function InvoicesPage() {
       toast.error(e instanceof Error ? e.message : 'Failed to record payment');
     } finally {
       setPayLoading(false);
+    }
+  };
+
+  const deletePaymentEntry = async (paymentId: number) => {
+    if (!payModal) return;
+    if (!confirm('Delete this payment? The invoice paid amount will be recalculated.')) return;
+    setDeletingPaymentId(paymentId);
+    try {
+      await api.delete(`/invoices/${payModal.id}/payment/${paymentId}`);
+      toast.success('Payment deleted');
+      void queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      const updated = await api.get(`/invoices/${payModal.id}`);
+      const full    = updated.data.data as Invoice;
+      setPayHistory(full.payments ?? []);
+      setPayModal((p) => p ? { ...p, paidAmount: full.paidAmount } : p);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete payment');
+    } finally {
+      setDeletingPaymentId(null);
     }
   };
 
@@ -295,14 +315,26 @@ export default function InvoicesPage() {
                         {pmt.notes && <span className="text-[#94A3B8] ml-1">— {pmt.notes}</span>}
                         {pmt.receiptNumber && <span className="text-[#64748B] ml-1 font-mono">({pmt.receiptNumber})</span>}
                       </div>
-                      <a
-                        href={pmt.receiptPdfUrl ?? `/api/invoices/${payModal.id}/payment/${pmt.id}/receipt?token=${getToken()}`}
-                        target="_blank" rel="noreferrer"
-                        title={`Download receipt for payment ${idx + 1}`}
-                        className="flex items-center gap-1 text-primary hover:text-primary/80 transition-colors ml-2 flex-shrink-0">
-                        <Receipt size={13} />
-                        <span>Receipt</span>
-                      </a>
+                      <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                        <a
+                          href={pmt.receiptPdfUrl ?? `/api/invoices/${payModal.id}/payment/${pmt.id}/receipt?token=${getToken()}`}
+                          target="_blank" rel="noreferrer"
+                          title={`Download receipt for payment ${idx + 1}`}
+                          className="flex items-center gap-1 text-primary hover:text-primary/80 transition-colors">
+                          <Receipt size={13} />
+                          <span>Receipt</span>
+                        </a>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            title="Delete this payment"
+                            disabled={deletingPaymentId === pmt.id}
+                            onClick={() => deletePaymentEntry(pmt.id)}
+                            className="flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors disabled:opacity-40">
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
