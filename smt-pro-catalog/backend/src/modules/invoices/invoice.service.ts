@@ -516,6 +516,7 @@ export const deletePayment = async (invoiceId: number, paymentId: number) => {
         data:  { pdfUrl: stored.url, pdfPublicId: stored.publicId },
       });
     }
+    return undefined;
   }).catch(() => { /* non-fatal — PDF regeneration failure doesn't block the response */ });
 
   return updated;
